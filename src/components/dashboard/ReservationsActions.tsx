@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '../ui/button'
 import { Loader2, Armchair, XCircle, Send } from 'lucide-react'
 import type { Reservation, Table } from '../../lib/supabase'
-import { seatReservation, updateReservationStatus, saveMessageHistory } from '../../lib/supabase-data'
+import { seatReservation, updateReservationStatus, saveMessageHistory, sendSMS } from '../../lib/supabase-data'
 import { useGlobalState } from '../../lib/global-state'
 import {
   Tooltip,
@@ -70,7 +70,12 @@ export function ReservationsActions({ reservation, tables }: { reservation: Rese
         console.log('Sending SMS to', reservation.phone, ':', message)
         
         // Simulate SMS sending (remove this when integrating real SMS)
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const smsResponse = await sendSMS({
+          mobileNumber: reservation.phone,
+          countryCode: '+91',
+          message,
+        })
+        // await new Promise(resolve => setTimeout(resolve, 500))
         
         messageStatus = 'sent'
         
@@ -113,10 +118,10 @@ export function ReservationsActions({ reservation, tables }: { reservation: Rese
     }
   }
 
-  const handleSeat = async (tableId: string) => {
+  const handleSeat = async (tableId: string, restaurantId: string) => {
     setIsSeatLoading(true)
     try {
-      await seatReservation(reservation.id, tableId)
+      await seatReservation(reservation.id, tableId , reservation)
       const table = tables.find(t => t.id === tableId)
       toast({ title: "Guest Seated", description: `${reservation.name} has been assigned to table ${table?.name || tableId}.` })
       await Promise.all([refreshReservations(), refreshTables()])
@@ -153,7 +158,7 @@ export function ReservationsActions({ reservation, tables }: { reservation: Rese
             <DropdownMenuLabel>Available Tables</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {availableTables.map(table => (
-              <DropdownMenuItem key={table.id} onClick={() => handleSeat(table.id)}>
+              <DropdownMenuItem key={table.id} onClick={() => handleSeat(table.id , table.restaurant_id)}>
                 Table {table.name} (Seats: {table.seats})
               </DropdownMenuItem>
             ))}

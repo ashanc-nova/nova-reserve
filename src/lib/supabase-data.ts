@@ -1,5 +1,6 @@
 import { supabase, type Restaurant, type Table, type WaitlistEntry, type Reservation, type TimeSlot, type MessageHistory } from './supabase'
 import { getSubdomain } from './subdomain-utils'
+import { config } from './config'
 
 /**
  * Gets the current restaurant ID from subdomain
@@ -18,6 +19,7 @@ export async function getRestaurantId(): Promise<string> {
       .select('id')
       .eq('subdomain', defaultSubdomain)
       .single()
+
     if (error) throw new Error(`Failed to get restaurant: ${error.message}`)
     return data.id
   }
@@ -31,6 +33,35 @@ export async function getRestaurantId(): Promise<string> {
   if (error) throw new Error(`Failed to get restaurant for subdomain "${subdomain}": ${error.message}`)
   return data.id
 }
+
+
+export async function getRestaurantRefId(): Promise<string> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  
+  const subdomain = getSubdomain()
+  if (!subdomain) {
+    // Fallback to default for development or when no subdomain
+    const defaultSubdomain = import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('novaref_id')
+      .eq('subdomain', defaultSubdomain)
+      .single()
+
+    if (error) throw new Error(`Failed to get restaurant: ${error.message}`)
+    return data.novaref_id
+  }
+
+  const { data, error } = await supabase
+    .from('restaurants')
+    .select('novaref_id')
+    .eq('subdomain', subdomain)
+    .single()
+  
+  if (error) throw new Error(`Failed to get restaurant for subdomain "${subdomain}": ${error.message}`)
+  return data.novaref_id
+}
+
 
 /**
  * Gets the current restaurant by subdomain
@@ -124,6 +155,52 @@ export async function isWaitlistPaused(): Promise<boolean> {
 
 export async function getTables(): Promise<Table[]> {
   if (!supabase) throw new Error('Supabase client not initialized')
+  
+  // If unifiedServiceUrl is configured, use the unified service API
+  if (config.unifiedServiceUrl) {
+    try {
+      const restaurantRefId = await getRestaurantRefId()
+      
+      if (!restaurantRefId) {
+        throw new Error(`Restaurant NovaRef ID is not set`)
+      }
+      
+      const url = `${config.unifiedServiceUrl}restaurant-reservations/${restaurantRefId}/table-status`
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch table status: ${response.statusText}`)
+      }
+      
+      const data = 
+      await response.json()
+
+      const transformedTables: Table[] = []
+
+      if (Array.isArray(data)) {
+        data.forEach((area: any) => {
+          if (area.tables && Array.isArray(area.tables)) {
+            area.tables.forEach((table: any) => {
+              transformedTables.push({
+                id: table.refId,
+                restaurant_id: table.restaurantRefId,
+                name: table.tableName,
+                seats: table.seatingCapacity,
+                status:  table.isTableOccupied ? 'occupied' : 'available',
+                location: area.areaName || undefined, // Use area name as location
+                created_at: new Date().toISOString(), // Default since API doesn't provide this
+              })
+            })
+          }
+        })
+      }
+      return transformedTables || []
+    } catch (error: any) {
+      console.error('Error fetching from unified service:', error)
+      throw new Error(`Failed to get tables from unified service: ${error.message}`)
+    }
+  }
+  
+  // Fallback to Supabase if unifiedServiceUrl is not configured
   const restaurantId = await getRestaurantId()
   const { data, error } = await supabase.from('tables').select('*').eq('restaurant_id', restaurantId).order('name')
   if (error) throw new Error(`Failed to get tables: ${error.message}`)
@@ -211,7 +288,88 @@ export async function addReservation(data: {
   slot_end_time?: string
 }): Promise<Reservation> {
   if (!supabase) throw new Error('Supabase client not initialized')
+  
+  const restaurant = await getRestaurant()
+  const restaurantRefId = restaurant.novaref_id
   const restaurantId = await getRestaurantId()
+  
+  // If unifiedServiceUrl is configured, use the unified service API
+  if (config.unifiedServiceUrl && restaurantRefId) {
+    try {
+      // Split name into firstName and lastName
+      const nameParts = data.name.trim().split(/\s+/)
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ' '
+      
+      let mobileNumber = data.phone.trim()
+      let countryCode = '+91' // Default country code
+      
+      
+      
+      const url = `${config.unifiedServiceUrl}restaurant-reservations/${restaurantRefId}/customer`
+      
+      const requestBody = {
+        mobileNumber: mobileNumber,
+        firstName: firstName,
+        lastName: lastName,
+        countryCode: countryCode,
+        restaurantRefId: restaurantRefId,
+      }
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText)
+        throw new Error(`Failed to add reservation: ${response.status} ${errorText}`)
+      }
+      
+      const apiData = await response.json()
+      
+      // Transform the API response to match Reservation format
+      // The API might return the created reservation or just a success response
+      // Adjust this mapping based on the actual API response structure
+      const reservation: Reservation = {
+        id: apiData.refId || apiData.id || crypto.randomUUID(),
+        restaurant_id: restaurantId,
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        party_size: data.party_size,
+        date_time: data.date_time,
+        status: data.status,
+        special_requests: data.special_requests,
+        special_occasion_type: data.special_occasion_type,
+        slot_start_time: data.slot_start_time,
+        slot_end_time: data.slot_end_time,
+        created_at: apiData.createdDate || apiData.created_at || new Date().toISOString(),
+        novacustomer_id: apiData.refId || "",
+      }
+      
+      // Save to Supabase for local tracking
+      await supabase
+        .from('reservations')
+        .insert({
+          restaurant_id: restaurantId,
+          novacustomer_id: apiData.refId || "",
+          ...data,
+        })
+        .select()
+        .single()
+    
+      return reservation
+    } catch (error: any) {
+      console.error('Error adding reservation via unified service:', error)
+      throw new Error(`Failed to add reservation: ${error.message}`)
+    }
+  }
+  
+  // Fallback to Supabase if unifiedServiceUrl is not configured
   const { data: reservation, error } = await supabase
     .from('reservations')
     .insert({
@@ -230,11 +388,49 @@ export async function updateReservationStatus(id: string, status: Reservation['s
   if (error) throw new Error(`Failed to update reservation status: ${error.message}`)
 }
 
-export async function seatReservation(id: string, tableId: string): Promise<void> {
+export async function seatReservation(id: string, tableId: string, reservation: Reservation): Promise<void> {
   if (!supabase) throw new Error('Supabase client not initialized')
-  const { error } = await supabase.from('reservations').update({ status: 'seated', table_id: tableId }).eq('id', id)
-  if (error) throw new Error(`Failed to seat reservation: ${error.message}`)
-  await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId)
+  
+
+  const restaurant = await getRestaurant()
+  const restaurantRefId = restaurant.novaref_id
+  const {novacustomer_id : customerRefId, date_time: reservationDate,  party_size: seatsRequired} = reservation
+ 
+  if (config.unifiedServiceUrl && restaurantRefId) {
+    try {
+      const url = `${config.unifiedServiceUrl}restaurant-reservations/${restaurantRefId}/table/${tableId}/book-table`
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerRefId,
+          reservationDate,
+          seatsRequired,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Failed to book table: ${response.statusText} - ${errorText}`)
+      }
+      
+    
+      const { error } = await supabase.from('reservations').update({ status: 'seated', table_id: tableId }).eq('id', id)
+      if (error) throw new Error(`Failed to seat reservation: ${error.message}`)
+      await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId)
+    } catch (error: any) {
+      console.error('Error booking table via unified service:', error)
+      throw new Error(`Failed to book table: ${error.message}`)
+    }
+  }
+  
+  // Fallback to Supabase if unifiedServiceUrl is not configured
+  // const { error } = await supabase.from('reservations').update({ status: 'seated', table_id: tableId }).eq('id', id)
+  // if (error) throw new Error(`Failed to seat reservation: ${error.message}`)
+  // await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId)
 }
 
 export async function createTimeSlot(data: {
@@ -375,6 +571,54 @@ export async function getMessageHistory(reservationId: string): Promise<MessageH
   
   if (error) throw new Error(`Failed to get message history: ${error.message}`)
   return data || []
+}
+
+/**
+ * Send SMS message using the SMS API
+ */
+export async function sendSMS(data: {mobileNumber: string, countryCode: string, message: string}): Promise<{ success: boolean; message?: string; error?: string }> {
+  const { mobileNumber, countryCode, message } = data
+  if (!mobileNumber || !countryCode || !message) {
+    throw new Error('Mobile number, country code, and message are required')
+  }
+  try {
+    if (!config.smsApiKey || !config.smsApiBaseUrl) {
+      throw new Error('SMS API configuration is missing. Please configure smsApiKey and smsApiBaseUrl.')
+    }
+
+    const url = `${config.smsApiBaseUrl}/mycustomers/customers/send-custom-sms`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.smsApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        mobileNumber: mobileNumber,
+        countryCode: countryCode,
+        message: message,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText)
+      throw new Error(`Failed to send SMS: ${response.status} ${errorText}`)
+    }
+
+    const data = await response.json().catch(() => ({}))
+    
+    return {
+      success: true,
+      message: data.message,
+    }
+  } catch (error: any) {
+    console.error('Error sending SMS:', error)
+    return {
+      success: false,
+      error: error.message || 'Failed to send SMS',
+    }
+  }
 }
 
 export async function getAvailableSlots(date: Date, _partySize: number): Promise<string[]> {

@@ -1,0 +1,11 @@
+{
+  "supabaseUrl": "",
+  "supabaseAnonKey": "",
+  "openaiApiKey": "",
+  "baseUrl": "https://dev03.as1.dev.bakeit360.com",
+  "environment": "qa03",
+  "unifiedServiceUrl": "https://dev03.as1.dev.bakeit360.com/unified/internal-service/api/",
+  "smsApiKey": "aFQRAtwNWd3OvJsqUEYfN8uYwmDPZWOQ37vHIu3I",
+  "smsApiBaseUrl": "https://dev03.as1.dev.bakeit360.com"
+}
+

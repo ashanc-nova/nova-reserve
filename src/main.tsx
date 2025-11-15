@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import 'react-day-picker/dist/style.css'
 import './index.css'
 import { GlobalStateProvider } from './lib/global-state'
 import { RestaurantProvider } from './lib/restaurant-context'

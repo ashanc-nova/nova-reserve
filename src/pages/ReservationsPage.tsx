@@ -18,11 +18,12 @@ export default function ReservationsPage() {
     showCancellationRate: true,
     showThisWeek: true
   })
-
+  console.log('tables0', tables)
   useEffect(() => {
     const loadKpiSettings = async () => {
       try {
         const restaurant = await getRestaurant()
+        console.log('restaurant', restaurant)
         const managerSettings = restaurant.settings?.manager_settings || {}
         setKpiVisibility({
           showAvgPartySize: managerSettings.show_avg_party_size !== undefined ? managerSettings.show_avg_party_size : false,

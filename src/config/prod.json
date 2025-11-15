@@ -1,0 +1,11 @@
+{
+  "supabaseUrl": "",
+  "supabaseAnonKey": "",
+  "openaiApiKey": "",
+  "baseUrl": "",
+  "environment": "prod",
+  "unifiedServiceUrl": "",
+  "smsApiKey": "",
+  "smsApiBaseUrl": ""
+}
+

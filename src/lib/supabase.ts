@@ -73,6 +73,7 @@ export interface Reservation {
   slot_start_time?: string
   slot_end_time?: string
   created_at: string
+  novacustomer_id?: string
 }
 
 export interface TimeSlot {
