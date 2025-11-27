@@ -122,20 +122,8 @@ export async function isWaitlistPaused(): Promise<boolean> {
   return restaurant.settings?.waitlist_paused || false
 }
 
-export async function getTables(): Promise<Table[]> {
-  if (!supabase) throw new Error('Supabase client not initialized')
-  const restaurantId = await getRestaurantId()
-  const { data, error } = await supabase.from('tables').select('*').eq('restaurant_id', restaurantId).order('name')
-  if (error) throw new Error(`Failed to get tables: ${error.message}`)
-  return data || []
-}
-
-export async function freeTable(tableId: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase client not initialized')
-  // Set table directly to available (no cleaning status)
-  const { error } = await supabase.from('tables').update({ status: 'available' }).eq('id', tableId)
-  if (error) throw new Error(`Failed to free table: ${error.message}`)
-}
+// Note: getTables and freeTable are no longer needed as we use external tables from Nova API
+// Table status is managed by Nova's system via getNovaTableStatus() in nova-api.ts
 
 export async function getWaitlist(): Promise<WaitlistEntry[]> {
   if (!supabase) throw new Error('Supabase client not initialized')
@@ -195,7 +183,11 @@ export async function getAllReservations(): Promise<Reservation[]> {
     .eq('restaurant_id', restaurantId)
     .order('date_time', { ascending: false })
   if (error) throw new Error(`Failed to get reservations: ${error.message}`)
-  return data || []
+  // Parse payment_amount from string to number if needed
+  return (data || []).map(r => ({
+    ...r,
+    payment_amount: r.payment_amount ? parseFloat(r.payment_amount.toString()) : undefined
+  }))
 }
 
 export async function addReservation(data: {
@@ -204,11 +196,12 @@ export async function addReservation(data: {
   email: string
   party_size: number
   date_time: string
-  status: 'confirmed' | 'notified' | 'seated' | 'cancelled' | 'completed'
+  status: 'draft' | 'confirmed' | 'notified' | 'seated' | 'cancelled' | 'completed'
   special_requests?: string
   special_occasion_type?: string
   slot_start_time?: string
   slot_end_time?: string
+  novacustomer_id?: string
 }): Promise<Reservation> {
   if (!supabase) throw new Error('Supabase client not initialized')
   const restaurantId = await getRestaurantId()
@@ -224,17 +217,51 @@ export async function addReservation(data: {
   return reservation
 }
 
+export async function getReservation(id: string): Promise<Reservation | null> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) throw new Error(`Failed to get reservation: ${error.message}`)
+  if (!data) return null
+  // Parse payment_amount from string to number if needed
+  return {
+    ...data,
+    payment_amount: data.payment_amount ? parseFloat(data.payment_amount.toString()) : undefined
+  }
+}
+
 export async function updateReservationStatus(id: string, status: Reservation['status']): Promise<void> {
   if (!supabase) throw new Error('Supabase client not initialized')
   const { error } = await supabase.from('reservations').update({ status }).eq('id', id)
   if (error) throw new Error(`Failed to update reservation status: ${error.message}`)
 }
 
+export async function updateReservationNovaCustomerId(id: string, novacustomer_id: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  const { error } = await supabase.from('reservations').update({ novacustomer_id }).eq('id', id)
+  if (error) throw new Error(`Failed to update reservation Nova customer ID: ${error.message}`)
+}
+
+export async function updateReservationPaymentAmount(id: string, payment_amount: number): Promise<void> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  const { error } = await supabase.from('reservations').update({ payment_amount }).eq('id', id)
+  if (error) throw new Error(`Failed to update reservation payment amount: ${error.message}`)
+}
+
 export async function seatReservation(id: string, tableId: string): Promise<void> {
   if (!supabase) throw new Error('Supabase client not initialized')
-  const { error } = await supabase.from('reservations').update({ status: 'seated', table_id: tableId }).eq('id', id)
+  
+  // Update reservation status to 'seated' and store external table refId
+  // The table booking is already handled by Nova API via bookNovaTable
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'seated', table_id: tableId })
+    .eq('id', id)
+  
   if (error) throw new Error(`Failed to seat reservation: ${error.message}`)
-  await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId)
 }
 
 export async function createTimeSlot(data: {

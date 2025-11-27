@@ -224,7 +224,7 @@ export default function AdminPanel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-[#050816] text-white flex items-center justify-center">
+      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -233,27 +233,27 @@ export default function AdminPanel() {
   return (
     <>
       <Toaster />
-      <div className="min-h-screen w-full bg-[#050816] text-white">
-        <div className="container mx-auto px-8 py-12">
+      <div className="min-h-screen w-full bg-background text-foreground">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-12">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div>
-              <h1 className="text-4xl font-bold gradient-text mb-2">Admin Panel</h1>
-              <p className="text-muted-foreground">Manage restaurants and settings</p>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-2">Admin Panel</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">Manage restaurants and settings</p>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => handleOpenDialog()} className="bg-primary hover:bg-primary/90">
+                <Button onClick={() => handleOpenDialog()} className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Restaurant
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-[#0C1020] border-white/10 text-white max-w-2xl">
+              <DialogContent className="bg-card border-border text-foreground max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl gradient-text">
+                  <DialogTitle className="text-xl sm:text-2xl gradient-text">
                     {editingRestaurant ? 'Edit Restaurant' : 'Create New Restaurant'}
                   </DialogTitle>
-                  <DialogDescription className="text-muted-foreground">
+                  <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
                     {editingRestaurant 
                       ? 'Update restaurant information' 
                       : 'Add a new restaurant to the system'}
@@ -261,87 +261,87 @@ export default function AdminPanel() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Restaurant Name *</Label>
+                    <Label htmlFor="name" className="text-sm sm:text-base">Restaurant Name *</Label>
                     <Input
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="bg-background/50 border-white/10"
+                      className="bg-background/50 border-border"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="subdomain">Subdomain *</Label>
+                    <Label htmlFor="subdomain" className="text-sm sm:text-base">Subdomain *</Label>
                     <Input
                       id="subdomain"
                       value={formData.subdomain}
                       onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
                       required
                       placeholder="joes-pizza"
-                      className="bg-background/50 border-white/10"
+                      className="bg-background/50 border-border"
                     />
                     <p className="text-xs text-muted-foreground">
                       Lowercase letters, numbers, and hyphens only. Will be used as {formData.subdomain ? `${formData.subdomain}.novaqueue.com` : 'subdomain.novaqueue.com'}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description" className="text-sm sm:text-base">Description</Label>
                     <Textarea
                       id="description"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="bg-background/50 border-white/10"
+                      className="bg-background/50 border-border"
                       rows={3}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address" className="text-sm sm:text-base">Address</Label>
                       <Input
                         id="address"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="bg-background/50 border-white/10"
+                        className="bg-background/50 border-border"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
+                      <Label htmlFor="phone" className="text-sm sm:text-base">Phone</Label>
                       <Input
                         id="phone"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="bg-background/50 border-white/10"
+                        className="bg-background/50 border-border"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="bg-background/50 border-white/10"
+                      className="bg-background/50 border-border"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="novaref_id">Nova Ref ID</Label>
+                    <Label htmlFor="novaref_id" className="text-sm sm:text-base">Nova Ref ID</Label>
                     <Input
                       id="novaref_id"
                       value={formData.novaref_id}
                       onChange={(e) => setFormData({ ...formData, novaref_id: e.target.value })}
                       placeholder="Enter Nova reference ID"
-                      className="bg-background/50 border-white/10"
+                      className="bg-background/50 border-border"
                     />
                     <p className="text-xs text-muted-foreground">
                       Reference ID for external API integration
                     </p>
                   </div>
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+                    <Button type="button" variant="outline" onClick={handleCloseDialog} className="w-full sm:w-auto">
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-primary hover:bg-primary/90">
+                    <Button type="submit" className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
                       <Save className="mr-2 h-4 w-4" />
                       {editingRestaurant ? 'Update' : 'Create'}
                     </Button>
@@ -352,9 +352,9 @@ export default function AdminPanel() {
           </div>
 
           {/* Restaurants List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {restaurants.map((restaurant) => (
-              <Card key={restaurant.id} className="bg-[#0C1020]/80 border-white/10">
+              <Card key={restaurant.id} className="bg-card border-border">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -393,7 +393,7 @@ export default function AdminPanel() {
                     <p className="text-sm text-muted-foreground">{restaurant.description}</p>
                   )}
                   {restaurant.subdomain && (
-                    <div className="pt-2 border-t border-white/10">
+                    <div className="pt-2 border-t border-border">
                       <p className="text-xs text-muted-foreground mb-1">Access URLs:</p>
                       <div className="space-y-1">
                         <a
@@ -436,7 +436,7 @@ export default function AdminPanel() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#0C1020] border-white/10 text-white">
+        <AlertDialogContent className="bg-card border-border text-foreground">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Restaurant</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">

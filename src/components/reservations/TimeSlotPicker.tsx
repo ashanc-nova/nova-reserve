@@ -69,8 +69,8 @@ export function TimeSlotPicker({ slots, selectedTime, onSelectTime, isLoading, h
           type="button"
           variant={selectedTime === slot ? "default" : "outline"}
           className={cn(
-            "h-14 text-base font-medium bg-background/50 border-white/10 hover:bg-primary/20 transition-all",
-            selectedTime === slot && "bg-primary text-white hover:bg-primary/90"
+            "h-14 text-base font-medium bg-background/50 border-border hover:bg-primary/20 transition-all",
+            selectedTime === slot && "bg-primary text-primary-foreground hover:bg-primary/90"
           )}
           onClick={() => onSelectTime(slot)}
         >

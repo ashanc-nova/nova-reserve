@@ -4,7 +4,7 @@ import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Label } from '../ui/label'
 import { Badge } from '../ui/badge'
-import { Loader2, Send, User, Smartphone, Calendar, Clock, History, CheckCircle2, XCircle, Clock as ClockIcon } from 'lucide-react'
+import { Loader2, Send, User, Smartphone, Calendar, Clock, History, CheckCircle2, XCircle, Clock as ClockIcon, ArrowLeft } from 'lucide-react'
 import type { Reservation, MessageHistory } from '../../lib/supabase'
 import { formatDateWithTimezone, formatTimeInTimezone } from '../../lib/timezone-utils'
 import { cn } from '../../lib/utils'
@@ -22,27 +22,27 @@ const MESSAGE_TEMPLATES = [
   {
     id: 'reschedule',
     label: 'Reschedule Request',
-    text: 'Hi {name}, we apologize for the inconvenience, but we need to reschedule your reservation for {date} at {time}. Please let us know if you can make it at a different time. Thank you!'
+    text: 'Hi {name}, we need to reschedule your reservation for {date} at {time}. Please let us know if another time works.'
   },
   {
     id: 'reminder',
     label: 'Reminder',
-    text: 'Hi {name}, this is a friendly reminder about your reservation for {date} at {time}. We look forward to seeing you!'
+    text: 'Hi {name}, reminder: your reservation is {date} at {time}. See you soon!'
   },
   {
     id: 'delay',
     label: 'Running Late',
-    text: 'Hi {name}, we apologize, but we are running a bit behind schedule. Your reservation for {date} at {time} may be delayed by approximately 15-20 minutes. We appreciate your patience!'
+    text: 'Hi {name}, we\'re running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
   },
   {
     id: 'cancellation',
     label: 'Cancellation Notice',
-    text: 'Hi {name}, we regret to inform you that we need to cancel your reservation for {date} at {time} due to unforeseen circumstances. We sincerely apologize for any inconvenience. Please contact us to reschedule.'
+    text: 'Hi {name}, we need to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
   },
   {
     id: 'confirmation',
     label: 'Confirmation',
-    text: 'Hi {name}, this is to confirm your reservation for {date} at {time} for {party_size} guests. We look forward to serving you!'
+    text: 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
   },
   {
     id: 'custom',
@@ -60,11 +60,14 @@ export function SendMessageModal({ reservation, open, onOpenChange, onSend }: Se
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   const formatMessage = (template: string): string => {
-    return template
+    const formatted = template
       .replace(/{name}/g, reservation.name)
       .replace(/{date}/g, formatDateWithTimezone(reservation.date_time))
       .replace(/{time}/g, formatTimeInTimezone(reservation.date_time))
       .replace(/{party_size}/g, reservation.party_size.toString())
+    
+    // Truncate to 160 characters max (130 for template content + name)
+    return formatted.length > 160 ? formatted.substring(0, 160) : formatted
   }
 
   const handleTemplateSelect = (templateId: string) => {
@@ -132,12 +135,12 @@ export function SendMessageModal({ reservation, open, onOpenChange, onSend }: Se
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0C1020]/95 border-white/10 backdrop-blur-xl max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border backdrop-blur-xl max-w-5xl h-[60vh] sm:h-[70vh] md:h-[75vh] flex flex-col overflow-hidden w-[95vw] sm:w-full">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="gradient-text text-2xl">Send Message to Guest</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="gradient-text text-xl sm:text-2xl">Send Message to Guest</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
                 Send an SMS message to the guest for this reservation
               </DialogDescription>
             </div>
@@ -150,147 +153,175 @@ export function SendMessageModal({ reservation, open, onOpenChange, onSend }: Se
                   loadMessageHistory()
                 }
               }}
-              className="bg-card/50 hover:bg-card border-white/10"
+              className="bg-card/50 hover:bg-card border-border"
             >
               <History className="h-4 w-4" />
             </Button>
           </div>
         </DialogHeader>
 
-        {/* Message History */}
-        {showHistory && (
-          <div className="mt-4 p-4 bg-card/50 rounded-lg border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground">Message History</h3>
-              <Badge variant="outline" className="bg-card/50">
-                {messageHistory.length} {messageHistory.length === 1 ? 'message' : 'messages'}
-              </Badge>
-            </div>
-            {isLoadingHistory ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        {/* Two Column Layout */}
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
+          {/* Left Column - Guest Information */}
+          <div className="lg:col-span-1 flex flex-col">
+            <div className="p-3 sm:p-4 bg-card/50 rounded-lg border border-border space-y-3 sm:space-y-4 flex-1">
+              <h3 className="text-xs sm:text-sm font-semibold text-muted-foreground">Guest Information</h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <User className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Name</p>
+                    <p className="text-sm font-medium">{reservation.name}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                    <p className="text-sm font-medium">{reservation.phone}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Date</p>
+                    <p className="text-sm font-medium">{formatDateWithTimezone(reservation.date_time)}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Time</p>
+                    <p className="text-sm font-medium">{formatTimeInTimezone(reservation.date_time)}</p>
+                  </div>
+                </div>
               </div>
-            ) : messageHistory.length === 0 ? (
-              <div className="text-center py-8">
-                <History className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">No messages sent yet</p>
+            </div>
+          </div>
+
+          {/* Right Column - Message Templates & Input OR Message History */}
+          <div className="lg:col-span-2 flex flex-col min-h-0">
+            {showHistory ? (
+              /* Message History View */
+              <div className="flex flex-col space-y-4 flex-1 min-h-0">
+                <div className="flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowHistory(false)}
+                      className="bg-card/50 hover:bg-card border-border"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Message History</h3>
+                  </div>
+                  <Badge variant="outline" className="bg-card/50">
+                    {messageHistory.length} {messageHistory.length === 1 ? 'message' : 'messages'}
+                  </Badge>
+                </div>
+                <div className="flex-1 p-4 bg-card/50 rounded-lg border border-border min-h-0 overflow-hidden flex flex-col">
+                  {isLoadingHistory ? (
+                    <div className="flex items-center justify-center flex-1">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : messageHistory.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1">
+                      <History className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
+                      <p className="text-sm text-muted-foreground">No messages sent yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 overflow-y-auto flex-1">
+                      {messageHistory.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className="p-3 bg-background/30 rounded-lg border border-border/50 space-y-2"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1">
+                              {getStatusIcon(msg.status)}
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(msg.sent_at), 'MMM d, yyyy h:mm a')}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-xs',
+                                  msg.status === 'sent' && 'bg-green-900/20 text-green-300 border-green-500/30',
+                                  msg.status === 'failed' && 'bg-red-900/20 text-red-300 border-red-500/30',
+                                  msg.status === 'pending' && 'bg-yellow-900/20 text-yellow-300 border-yellow-500/30'
+                                )}
+                              >
+                                {msg.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {messageHistory.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="p-3 bg-background/30 rounded-lg border border-white/5 space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        {getStatusIcon(msg.status)}
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(msg.sent_at), 'MMM d, yyyy h:mm a')}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-xs',
-                            msg.status === 'sent' && 'bg-green-900/20 text-green-300 border-green-500/30',
-                            msg.status === 'failed' && 'bg-red-900/20 text-red-300 border-red-500/30',
-                            msg.status === 'pending' && 'bg-yellow-900/20 text-yellow-300 border-yellow-500/30'
-                          )}
-                        >
-                          {msg.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
+              /* Message Templates & Input View */
+              <div className="flex flex-col space-y-4 flex-1 min-h-0">
+                {/* Message Templates */}
+                <div className="flex-shrink-0">
+                  <Label className="text-sm font-semibold mb-3 block">Message Templates</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {MESSAGE_TEMPLATES.map((template) => (
+                      <Badge
+                        key={template.id}
+                        variant={selectedTemplate === template.id ? 'default' : 'outline'}
+                        className={cn(
+                          'cursor-pointer transition-colors',
+                          selectedTemplate === template.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card/50 hover:bg-card border-border'
+                        )}
+                        onClick={() => handleTemplateSelect(template.id)}
+                      >
+                        {template.label}
+                      </Badge>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Message Input */}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <Label htmlFor="message" className="text-sm font-semibold mb-2 block">
+                    Message
+                  </Label>
+                  <Textarea
+                    id="message"
+                    value={message}
+                    maxLength={160}
+                    onChange={(e) => {
+                      const newValue = e.target.value.slice(0, 160)
+                      setMessage(newValue)
+                      if (selectedTemplate && selectedTemplate !== 'custom') {
+                        setSelectedTemplate('custom')
+                      }
+                    }}
+                    placeholder="Type your message here or select a template above..."
+                    className="bg-background/50 border-border min-h-[140px] resize-none flex-1"
+                    rows={5}
+                  />
+                  <p className={cn(
+                    "text-xs mt-2 flex-shrink-0",
+                    message.length >= 160 ? "text-red-400" : "text-muted-foreground"
+                  )}>
+                    {message.length} / 160 characters
+                  </p>
+                </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* Guest Information */}
-        <div className="mt-4 p-4 bg-card/50 rounded-lg border border-white/10 space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Guest Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Name</p>
-                <p className="text-sm font-medium">{reservation.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Phone</p>
-                <p className="text-sm font-medium">{reservation.phone}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Date</p>
-                <p className="text-sm font-medium">{formatDateWithTimezone(reservation.date_time)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Time</p>
-                <p className="text-sm font-medium">{formatTimeInTimezone(reservation.date_time)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Message Templates */}
-        <div className="mt-4">
-          <Label className="text-sm font-semibold mb-2 block">Message Templates</Label>
-          <div className="flex flex-wrap gap-2">
-            {MESSAGE_TEMPLATES.map((template) => (
-              <Badge
-                key={template.id}
-                variant={selectedTemplate === template.id ? 'default' : 'outline'}
-                className={cn(
-                  'cursor-pointer transition-colors',
-                  selectedTemplate === template.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-card/50 hover:bg-card border-white/10'
-                )}
-                onClick={() => handleTemplateSelect(template.id)}
-              >
-                {template.label}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* Message Input */}
-        <div className="mt-4">
-          <Label htmlFor="message" className="text-sm font-semibold mb-2 block">
-            Message
-          </Label>
-          <Textarea
-            id="message"
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value)
-              if (selectedTemplate && selectedTemplate !== 'custom') {
-                setSelectedTemplate('custom')
-              }
-            }}
-            placeholder="Type your message here or select a template above..."
-            className="bg-background/50 border-white/10 min-h-[120px] resize-none"
-            rows={5}
-          />
-          <p className="text-xs text-muted-foreground mt-2">
-            {message.length} characters
-          </p>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/10">
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
           <Button
             type="button"
             variant="outline"

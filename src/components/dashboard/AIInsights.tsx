@@ -36,11 +36,11 @@ export function AIInsights({ avgWaitTime }: { avgWaitTime: number }) {
   return (
     <Card className="col-span-1 bg-gradient-to-br from-primary/20 to-card border-primary/30 shadow-lg shadow-primary/10">
       <CardHeader className="pb-4">
-        <CardTitle className="gradient-text flex items-center gap-2 text-lg">
-          <BrainCircuit className="text-primary h-5 w-5" />
+        <CardTitle className="gradient-text flex items-center gap-2 text-base sm:text-lg">
+          <BrainCircuit className="text-primary h-4 w-4 sm:h-5 sm:w-5" />
           AI Insights
         </CardTitle>
-        <CardDescription className='text-muted-foreground min-h-[40px] text-sm leading-relaxed'>
+        <CardDescription className='text-muted-foreground min-h-[40px] text-xs sm:text-sm leading-relaxed'>
           {isPending ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -66,7 +66,7 @@ export function AIInsights({ avgWaitTime }: { avgWaitTime: number }) {
               <span className="text-sm font-semibold text-primary">AI Recommendation</span>
             </div>
             <div className="bg-gradient-to-r from-primary/10 to-transparent rounded-lg p-4 border border-primary/20">
-              <p className="text-sm leading-relaxed text-white/90 font-medium">
+              <p className="text-sm leading-relaxed text-foreground font-medium">
                 {displayedSuggestion}
               </p>
             </div>

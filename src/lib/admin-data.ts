@@ -1,6 +1,69 @@
 import { supabase, type Restaurant, type UserRestaurant } from './supabase'
 
 /**
+ * Create default time slots for a restaurant
+ * Creates half-hour slots from 6 PM to 10 PM with 6 max reservations per slot for all days of the week
+ */
+async function createDefaultTimeSlots(restaurantId: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  
+  // Generate time slots: 6:00 PM to 10:00 PM in 30-minute intervals
+  // That's 6:00-6:30, 6:30-7:00, 7:00-7:30, ..., 9:30-10:00 (8 slots)
+  const timeSlots = []
+  const startHour = 18 // 6 PM
+  const endHour = 22 // 10 PM
+  
+  // Create slots for all 7 days of the week (0 = Sunday, 6 = Saturday)
+  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Create two slots per hour: :00 and :30
+      for (const minute of [0, 30]) {
+        const startTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`
+        
+        // Calculate end time (30 minutes later)
+        let calculatedEndHour = hour
+        let calculatedEndMinute = minute + 30
+        if (calculatedEndMinute >= 60) {
+          calculatedEndHour += 1
+          calculatedEndMinute = 0
+        }
+        
+        // Skip if end time exceeds 10 PM (22:00)
+        if (calculatedEndHour > endHour || (calculatedEndHour === endHour && calculatedEndMinute > 0)) {
+          continue
+        }
+        
+        const endTime = `${String(calculatedEndHour).padStart(2, '0')}:${String(calculatedEndMinute).padStart(2, '0')}:00`
+        
+        timeSlots.push({
+          restaurant_id: restaurantId,
+          day_of_week: dayOfWeek,
+          start_time: startTime,
+          end_time: endTime,
+          max_reservations: 6,
+          is_default: true,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      }
+    }
+  }
+  
+  // Insert all time slots in a single batch
+  if (timeSlots.length > 0) {
+    const { error } = await supabase
+      .from('time_slots')
+      .insert(timeSlots)
+    
+    if (error) {
+      console.error('Error creating default time slots:', error)
+      // Don't throw - time slots are optional, restaurant creation should still succeed
+    }
+  }
+}
+
+/**
  * Admin functions for restaurant management
  * These should be protected by admin role checks
  */
@@ -106,6 +169,15 @@ export async function createRestaurant(data: {
     .single()
   
   if (error) throw new Error(`Failed to create restaurant: ${error.message}`)
+  
+  // Create default time slots for the new restaurant
+  try {
+    await createDefaultTimeSlots(restaurant.id)
+  } catch (slotError) {
+    console.error('Failed to create default time slots:', slotError)
+    // Don't fail restaurant creation if time slots fail
+  }
+  
   return restaurant
 }
 

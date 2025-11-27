@@ -25,7 +25,7 @@ export function RestaurantGuard({ children, fallback }: RestaurantGuardProps) {
   if (loading) {
     return (
       fallback || (
-        <div className="min-h-screen w-full bg-[#050816] text-white flex items-center justify-center">
+        <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center">
           <div className="text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
             <p className="text-muted-foreground">Loading restaurant...</p>
@@ -37,7 +37,7 @@ export function RestaurantGuard({ children, fallback }: RestaurantGuardProps) {
 
   if (error || !restaurant) {
     return (
-      <div className="min-h-screen w-full bg-[#050816] text-white flex items-center justify-center px-4">
+      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
           <div className="flex justify-center">
             <div className="p-3 bg-destructive/20 rounded-full">
@@ -52,7 +52,7 @@ export function RestaurantGuard({ children, fallback }: RestaurantGuardProps) {
             <Button
               variant="outline"
               onClick={() => window.location.href = '/admin'}
-              className="bg-card/50 border-white/10"
+              className="bg-card/50 border-border"
             >
               Go to Admin Panel
             </Button>

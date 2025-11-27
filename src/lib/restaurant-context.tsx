@@ -24,6 +24,42 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       setError(null)
 
+      // Check if URL has novaref_id in path (e.g., /713df1ae.../dashboard/reservations)
+      let novaRefId: string | null = null
+      if (typeof window !== 'undefined') {
+        const pathParts = window.location.pathname.split('/').filter(Boolean)
+        // Check if first part looks like a UUID (novaref_id)
+        if (pathParts.length > 0 && pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          novaRefId = pathParts[0]
+        }
+      }
+
+      // If novaref_id in path, load restaurant by novaref_id
+      if (novaRefId) {
+        if (!supabase) {
+          throw new Error('Supabase client not initialized')
+        }
+
+        const { data, error: fetchError } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('novaref_id', novaRefId)
+          .single()
+
+        if (fetchError || !data) {
+          setError(`Restaurant with ID "${novaRefId}" not found.`)
+          setRestaurant(null)
+          setRestaurantId(null)
+          setLoading(false)
+          return
+        }
+
+        setRestaurant(data)
+        setRestaurantId(data.id)
+        setLoading(false)
+        return
+      }
+
       const subdomain = getSubdomain()
 
       // Admin subdomain doesn't need restaurant context
@@ -106,15 +142,8 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
     loadRestaurant()
   }, [])
 
-  // Reload restaurant when subdomain might change (e.g., navigation)
-  useEffect(() => {
-    const handleFocus = () => {
-      // Reload if subdomain might have changed
-      loadRestaurant()
-    }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [])
+  // Only reload restaurant if subdomain actually changes, not on every focus
+  // This prevents unnecessary reloads when switching apps/tabs
 
   return (
     <RestaurantContext.Provider

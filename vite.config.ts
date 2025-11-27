@@ -23,4 +23,15 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    host: '0.0.0.0', // Listen on all interfaces
+    // Allow LAN access via nip.io wildcard domains and direct IP access
+    allowedHosts: [
+      'default.192.168.2.143.nip.io',
+      'default.192.168.1.26.nip.io',
+      '192.168.2.143',
+      '192.168.1.26',
+      'localhost',
+    ],
+  },
 })

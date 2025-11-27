@@ -48,15 +48,15 @@ const chartConfig = {
 
 export function BuzzFeed() {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in-50 px-8 md:px-16 lg:px-24">
+    <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in-50">
       {/* Stat Cards */}
       <Card className="col-span-1 bg-gradient-to-br from-blue-500/10 to-card border-blue-500/20 shadow-lg shadow-blue-500/5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Total Guests Today</CardTitle>
+          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Guests Today</CardTitle>
           <Users className="h-4 w-4 text-blue-400" />
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-bold gradient-text">{buzzData.totalGuests}</div>
+          <div className="text-3xl sm:text-4xl font-bold gradient-text">{buzzData.totalGuests}</div>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <TrendingUp className="h-3 w-3 text-green-400" />
             +12 since yesterday
@@ -65,11 +65,11 @@ export function BuzzFeed() {
       </Card>
       <Card className="col-span-1 bg-gradient-to-br from-orange-500/10 to-card border-orange-500/20 shadow-lg shadow-orange-500/5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Average Wait Time</CardTitle>
+          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Average Wait Time</CardTitle>
           <Clock className="h-4 w-4 text-orange-400" />
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-bold gradient-text">{buzzData.avgWaitTime}<span className='text-2xl'>min</span></div>
+          <div className="text-3xl sm:text-4xl font-bold gradient-text">{buzzData.avgWaitTime}<span className='text-xl sm:text-2xl'>min</span></div>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <TrendingUp className="h-3 w-3 text-green-400" />
             ~5 min less than last Friday
@@ -83,11 +83,11 @@ export function BuzzFeed() {
       {/* Trending Dishes */}
       <Card className="lg:col-span-1 bg-gradient-to-br from-red-500/10 to-card border-red-500/20 shadow-lg shadow-red-500/5">
         <CardHeader>
-          <CardTitle className='gradient-text flex items-center gap-2 text-lg'>
-            <Flame className='text-red-400 h-5 w-5'/>
+          <CardTitle className='gradient-text flex items-center gap-2 text-base sm:text-lg'>
+            <Flame className='text-red-400 h-4 w-4 sm:h-5 sm:w-5'/>
             Hottest Dishes
           </CardTitle>
-          <CardDescription className="text-muted-foreground">Most popular items in the galaxy right now</CardDescription>
+          <CardDescription className="text-xs sm:text-sm text-muted-foreground">Most popular items in the galaxy right now</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {buzzData.trendingDishes.map((dish, index) => (
@@ -97,7 +97,7 @@ export function BuzzFeed() {
                   <span className='font-bold text-red-400 text-sm'>{index + 1}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold leading-none text-white">{dish.name}</p>
+                  <p className="text-sm font-semibold leading-none text-foreground">{dish.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">{dish.orders} orders tonight</p>
                 </div>
               </div>
@@ -116,14 +116,14 @@ export function BuzzFeed() {
       {/* Peak Hours Chart */}
       <Card className="col-span-1 lg:col-span-2 bg-gradient-to-br from-purple-500/10 to-card border-purple-500/20 shadow-lg shadow-purple-500/5">
         <CardHeader>
-          <CardTitle className='gradient-text flex items-center gap-2 text-lg'>
-            <Clock className="h-5 w-5 text-purple-400" />
+          <CardTitle className='gradient-text flex items-center gap-2 text-base sm:text-lg'>
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400" />
             Peak Hours
           </CardTitle>
-          <CardDescription className="text-muted-foreground">Guest traffic over the evening</CardDescription>
+          <CardDescription className="text-xs sm:text-sm text-muted-foreground">Guest traffic over the evening</CardDescription>
         </CardHeader>
         <CardContent className="pl-2">
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+          <ChartContainer config={chartConfig} className="h-[180px] sm:h-[200px] w-full">
             <BarChart data={buzzData.peakHours}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" className='stroke-gray-600' />
               <XAxis dataKey="hour" tickLine={false} tickMargin={10} axisLine={false} stroke="#9CA3AF" fontSize={12} />
@@ -138,14 +138,14 @@ export function BuzzFeed() {
       {/* Orders by Category */}
       <Card className="col-span-1 lg:col-span-2 bg-gradient-to-br from-green-500/10 to-card border-green-500/20 shadow-lg shadow-green-500/5">
         <CardHeader>
-          <CardTitle className='gradient-text flex items-center gap-2 text-lg'>
-            <TrendingUp className="h-5 w-5 text-green-400" />
+          <CardTitle className='gradient-text flex items-center gap-2 text-base sm:text-lg'>
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
             Category Buzz
           </CardTitle>
-          <CardDescription className="text-muted-foreground">What's popular by course</CardDescription>
+          <CardDescription className="text-xs sm:text-sm text-muted-foreground">What's popular by course</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center">
-          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[200px]">
+          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[180px] sm:h-[200px]">
             <PieChart>
               <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
               <Pie data={buzzData.ordersByCategory} dataKey="value" nameKey="name" innerRadius={50} strokeWidth={5}>

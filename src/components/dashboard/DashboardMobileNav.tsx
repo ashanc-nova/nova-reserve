@@ -33,7 +33,7 @@ export function DashboardMobileNav({ activeView, onViewChange }: DashboardMobile
           <span className="sr-only">Toggle Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="sm:max-w-xs bg-[#050816]/80 backdrop-blur-xl border-r-white/10">
+      <SheetContent side="left" className="sm:max-w-xs bg-background/80 backdrop-blur-xl border-r-border">
         <nav className="grid gap-6 text-lg font-medium">
           <div
             className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"

@@ -66,12 +66,14 @@ export interface Reservation {
   email: string
   party_size: number
   date_time: string
-  status: 'confirmed' | 'notified' | 'seated' | 'cancelled' | 'completed'
+  status: 'draft' | 'confirmed' | 'notified' | 'seated' | 'cancelled' | 'completed'
   table_id?: string
   special_requests?: string
   special_occasion_type?: string
   slot_start_time?: string
   slot_end_time?: string
+  novacustomer_id?: string
+  payment_amount?: number
   created_at: string
 }
 

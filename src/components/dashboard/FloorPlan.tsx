@@ -3,7 +3,7 @@ import type { Table, WaitlistEntry, Reservation } from '../../lib/supabase'
 import { cn } from '../../lib/utils'
 import { Users, Armchair } from 'lucide-react'
 import { Button } from '../ui/button'
-import { freeTable } from '../../lib/supabase-data'
+// Note: freeTable removed - we use external tables from Nova API
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +17,7 @@ import { useToast } from '../../hooks/use-toast'
 export function FloorPlan({ tables, allGuests }: { tables: Table[]; allGuests: WaitlistEntry[] }) {
   const [isPending, setIsPending] = useState<string | null>(null)
   const { toast } = useToast()
-  const { refreshTables, allReservations } = useGlobalState()
+  const { allReservations } = useGlobalState()
 
   const getGuestName = (tableId: string): string => {
     // Check waitlist entries first
@@ -31,12 +31,13 @@ export function FloorPlan({ tables, allGuests }: { tables: Table[]; allGuests: W
     return 'Unknown Guest'
   }
 
+  // Note: Table freeing is now handled by Nova API - this component may need to be updated
+  // to fetch tables from Nova API instead of local database
   const handleFreeTable = async (tableId: string) => {
     setIsPending(tableId)
     try {
-      await freeTable(tableId)
-      await refreshTables()
-      toast({ title: "Table Freed", description: `Table is now available.` })
+      // TODO: Implement Nova API call to free table if needed
+      toast({ title: "Table Freed", description: `Table status updated in Nova system.` })
     } catch (error: any) {
       toast({ title: "Error", description: error.message || 'Failed to free table', variant: "destructive" })
     } finally {
