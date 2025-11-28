@@ -223,9 +223,18 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
     setIsSending(true)
     try {
       const phoneNumber = reservation.phone.replace(/\D/g, '')
-      await sendCustomSMS(phoneNumber, '+1', message)
+      await sendCustomSMS({
+        mobileNumber: phoneNumber,
+        countryCode: '+1',
+        message: message
+      })
       
-      await saveMessageHistory(reservation.id, message, 'sent')
+      await saveMessageHistory({
+        reservation_id: reservation.id,
+        phone_number: reservation.phone,
+        message: message,
+        status: 'sent'
+      })
       
       toast({ 
         title: "Message Sent", 
@@ -234,9 +243,13 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
       await refreshReservations()
       setMessage('')
       setSelectedTemplate(null)
-      setActionView('actions')
     } catch (error: any) {
-      await saveMessageHistory(reservation.id, message, 'failed')
+      await saveMessageHistory({
+        reservation_id: reservation.id,
+        phone_number: reservation.phone,
+        message: message,
+        status: 'failed'
+      })
       toast({ 
         title: "Error", 
         description: error.message || "Failed to send message", 

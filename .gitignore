@@ -27,3 +27,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify
+
+# Implementation docs and migrations
+IMPLEMENTATION_SUMMARY.md
+src/lib/subdomain-utils.ts
+migrations/

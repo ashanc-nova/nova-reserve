@@ -69,6 +69,7 @@ export function GlobalStateProvider({ children }: { children: React.ReactNode })
         const restaurantId = await getRestaurantId()
 
         // Subscribe to reservations changes
+        if (!supabase) return
         reservationsChannel = supabase
           .channel(`reservations:${restaurantId}`)
           .on(
@@ -130,6 +131,7 @@ export function GlobalStateProvider({ children }: { children: React.ReactNode })
           })
 
         // Subscribe to waitlist changes
+        if (!supabase) return
         waitlistChannel = supabase
           .channel(`waitlist:${restaurantId}`)
           .on(

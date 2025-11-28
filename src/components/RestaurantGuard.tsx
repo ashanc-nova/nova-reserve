@@ -36,6 +36,40 @@ export function RestaurantGuard({ children, fallback }: RestaurantGuardProps) {
   }
 
   if (error || !restaurant) {
+    const handleGoToAdmin = () => {
+      const hostname = window.location.hostname
+      const port = window.location.port
+      const protocol = window.location.protocol
+      const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'localhost'
+      
+      let adminUrl: string
+      
+      if (hostname.includes('localhost') || hostname === '127.0.0.1') {
+        // Development: go to admin.localhost or just localhost/admin
+        if (hostname.includes('.localhost')) {
+          adminUrl = `${protocol}//admin.localhost${port ? ':' + port : ''}/admin`
+        } else {
+          adminUrl = `${protocol}//${hostname}${port ? ':' + port : ''}/admin`
+        }
+      } else {
+        // Production: Check if we're on the base domain or a subdomain
+        if (hostname === baseDomain) {
+          // On base domain (e.g., nova-reserve.netlify.app)
+          // Just use /admin path
+          adminUrl = `${protocol}//${hostname}${port ? ':' + port : ''}/admin`
+        } else if (hostname.endsWith(`.${baseDomain}`)) {
+          // On a subdomain (e.g., restaurant.nova-reserve.netlify.app)
+          // Replace subdomain with 'admin'
+          adminUrl = `${protocol}//admin.${baseDomain}${port ? ':' + port : ''}/admin`
+        } else {
+          // Fallback for custom domains: use /admin path
+          adminUrl = `${protocol}//${hostname}${port ? ':' + port : ''}/admin`
+        }
+      }
+      
+      window.location.href = adminUrl
+    }
+
     return (
       <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-md">
@@ -51,7 +85,7 @@ export function RestaurantGuard({ children, fallback }: RestaurantGuardProps) {
           <div className="pt-4">
             <Button
               variant="outline"
-              onClick={() => window.location.href = '/admin'}
+              onClick={handleGoToAdmin}
               className="bg-card/50 border-border"
             >
               Go to Admin Panel

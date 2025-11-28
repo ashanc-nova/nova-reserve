@@ -28,14 +28,17 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       let novaRefId: string | null = null
       if (typeof window !== 'undefined') {
         const pathParts = window.location.pathname.split('/').filter(Boolean)
+        console.log('[Restaurant Context] Path parts:', pathParts)
         // Check if first part looks like a UUID (novaref_id)
         if (pathParts.length > 0 && pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
           novaRefId = pathParts[0]
+          console.log('[Restaurant Context] Detected novaref_id from path:', novaRefId)
         }
       }
 
       // If novaref_id in path, load restaurant by novaref_id
       if (novaRefId) {
+        console.log('[Restaurant Context] Loading restaurant by novaref_id:', novaRefId)
         if (!supabase) {
           throw new Error('Supabase client not initialized')
         }
@@ -47,6 +50,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           .single()
 
         if (fetchError || !data) {
+          console.error('[Restaurant Context] Failed to load restaurant by novaref_id:', fetchError)
           setError(`Restaurant with ID "${novaRefId}" not found.`)
           setRestaurant(null)
           setRestaurantId(null)
@@ -54,6 +58,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        console.log('[Restaurant Context] Successfully loaded restaurant:', data.name)
         setRestaurant(data)
         setRestaurantId(data.id)
         setLoading(false)
@@ -61,6 +66,7 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
       }
 
       const subdomain = getSubdomain()
+      console.log('[Restaurant Context] No novaref_id in path, checking subdomain:', subdomain)
 
       // Admin subdomain doesn't need restaurant context
       if (isAdminSubdomain()) {

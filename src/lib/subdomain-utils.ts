@@ -11,6 +11,8 @@
  * - "admin.localhost:5173" -> "admin"
  * - "localhost:5173" -> null
  * - "joes-pizza.novaqueue.com" -> "joes-pizza"
+ * - "nova-reserve.netlify.app" -> null (if VITE_BASE_DOMAIN=nova-reserve.netlify.app)
+ * - "joes-pizza.nova-reserve.netlify.app" -> "joes-pizza"
  */
 export function getSubdomain(): string | null {
   if (typeof window === 'undefined') {
@@ -19,10 +21,11 @@ export function getSubdomain(): string | null {
   }
 
   const hostname = window.location.hostname
-  const parts = hostname.split('.')
+  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'localhost'
 
   // Handle localhost development
   if (hostname.includes('localhost') || hostname === '127.0.0.1') {
+    const parts = hostname.split('.')
     // For localhost, check if there's a subdomain before "localhost"
     // Format: subdomain.localhost or subdomain.127.0.0.1
     if (parts.length >= 2 && parts[0] !== 'localhost' && parts[0] !== '127') {
@@ -32,13 +35,23 @@ export function getSubdomain(): string | null {
     return null
   }
 
-  // Production: subdomain.domain.com
-  // Assuming format: subdomain.novaqueue.com
-  if (parts.length >= 3) {
-    // Return the first part as subdomain
-    return parts[0]
+  // Production: Check against base domain
+  // If current hostname IS the base domain, there's no subdomain
+  if (hostname === baseDomain) {
+    return null
   }
 
+  // If current hostname ends with base domain and has more parts, extract subdomain
+  if (hostname.endsWith(`.${baseDomain}`)) {
+    // Extract everything before the base domain
+    const subdomain = hostname.slice(0, -(baseDomain.length + 1))
+    return subdomain || null
+  }
+
+  // IMPORTANT: Don't guess subdomains if base domain is not properly configured
+  // This prevents false positives when VITE_BASE_DOMAIN is not set in production
+  console.warn(`[Subdomain Detection] Base domain "${baseDomain}" does not match current hostname "${hostname}". Please set VITE_BASE_DOMAIN environment variable to "${hostname}" in your hosting provider.`)
+  
   // No subdomain found
   return null
 }

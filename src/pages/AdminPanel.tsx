@@ -11,9 +11,9 @@ import {
   getAllRestaurants, 
   createRestaurant, 
   updateRestaurant, 
-  deleteRestaurant,
-  type Restaurant 
+  deleteRestaurant
 } from '../lib/admin-data'
+import type { Restaurant } from '../lib/supabase'
 import { validateSubdomain, normalizeSubdomain } from '../lib/subdomain-utils'
 import { Plus, Edit, Trash2, Building2, Loader2, Save, X } from 'lucide-react'
 import {
