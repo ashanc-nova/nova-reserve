@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -20,10 +21,29 @@ import {
 } from "../components/ui/select"
 import { getRestaurant, getAvailableSlots, addReservation } from '../lib/supabase-data'
 import { createNovaCustomer } from '../lib/nova-api'
+import { useRestaurant } from '../lib/restaurant-context'
 import { Toaster } from '../components/ui/toaster'
 
 export default function GuestReservationPage() {
   const { toast } = useToast()
+  const location = useLocation()
+  const { restaurant: contextRestaurant } = useRestaurant()
+  
+  // Get restaurant prefix from URL path
+  const getRestaurantPrefix = () => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      return `/${pathParts[0]}`
+    }
+    if (contextRestaurant?.slug) {
+      return `/${contextRestaurant.slug}`
+    }
+    return ''
+  }
+  const restaurantPrefix = getRestaurantPrefix()
   
   // Form state
   const [date, setDate] = useState<Date | undefined>()
@@ -181,7 +201,7 @@ export default function GuestReservationPage() {
           }
           
           // Redirect to payment page with reservation ID
-          const paymentUrl = `/payment/${reservation.id}`
+          const paymentUrl = `${restaurantPrefix}/payment/${reservation.id}`
           console.log('Redirecting to payment page:', paymentUrl)
           window.location.href = paymentUrl
           return

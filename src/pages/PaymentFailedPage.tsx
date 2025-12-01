@@ -1,26 +1,45 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { XCircle, ArrowLeft, CreditCard } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { Toaster } from '../components/ui/toaster'
 import { getReservation } from '../lib/supabase-data'
+import { useRestaurant } from '../lib/restaurant-context'
 import type { Reservation } from '../lib/supabase'
 import { formatDateWithTimezone, formatTimeInTimezone } from '../lib/timezone-utils'
 
 export default function PaymentFailedPage() {
   const { reservationId } = useParams<{ reservationId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { restaurant } = useRestaurant()
   const { toast } = useToast()
   const [reservation, setReservation] = useState<Reservation | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Get restaurant prefix from URL path
+  const getRestaurantPrefix = () => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      return `/${pathParts[0]}`
+    }
+    if (restaurant?.slug) {
+      return `/${restaurant.slug}`
+    }
+    return ''
+  }
+  const restaurantPrefix = getRestaurantPrefix()
 
   useEffect(() => {
     const loadReservation = async () => {
       if (!reservationId) {
         toast({ title: 'Error', description: 'Invalid reservation ID', variant: 'destructive' })
-        navigate('/reserve')
+        navigate(`${restaurantPrefix}/reserve`)
         return
       }
 
@@ -30,21 +49,21 @@ export default function PaymentFailedPage() {
         
         if (!res) {
           toast({ title: 'Error', description: 'Reservation not found', variant: 'destructive' })
-          navigate('/reserve')
+          navigate(`${restaurantPrefix}/reserve`)
           return
         }
 
         setReservation(res)
       } catch (error: any) {
         toast({ title: 'Error', description: error.message || 'Failed to load reservation', variant: 'destructive' })
-        navigate('/reserve')
+        navigate(`${restaurantPrefix}/reserve`)
       } finally {
         setLoading(false)
       }
     }
 
     loadReservation()
-  }, [reservationId, navigate, toast])
+  }, [reservationId, navigate, toast, restaurantPrefix])
 
   if (loading) {
     return (
@@ -115,7 +134,7 @@ export default function PaymentFailedPage() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button
               variant="outline"
-              onClick={() => navigate(`/payment/${reservationId}`)}
+              onClick={() => navigate(`${restaurantPrefix}/payment/${reservationId}`)}
               className="flex-1 h-12 sm:h-14"
             >
               <CreditCard className="mr-2 h-4 w-4" />
@@ -123,7 +142,7 @@ export default function PaymentFailedPage() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => navigate('/reserve')}
+              onClick={() => navigate(`${restaurantPrefix}/reserve`)}
               className="flex-1 h-12 sm:h-14"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />

@@ -31,6 +31,7 @@ interface ReservationsTableProps {
   isEmbedded?: boolean
   reservationView?: ReservationView
   onReservationViewChange?: (view: ReservationView) => void
+  searchQuery?: string
 }
 
 export function ReservationsTable({ 
@@ -40,7 +41,8 @@ export function ReservationsTable({
   hideHeader = false, 
   isEmbedded = false,
   reservationView = 'active',
-  onReservationViewChange
+  onReservationViewChange,
+  searchQuery = ''
 }: ReservationsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortColumn, setSortColumn] = useState<SortColumn>(null)
@@ -87,7 +89,9 @@ export function ReservationsTable({
   }, [isEmbedded])
   
   // Determine which reservations to display
-  const displayReservations = isEmbedded && activeReservations && historyReservations
+  // Use activeReservations/historyReservations if provided (for both embedded and desktop views)
+  // Otherwise fall back to reservations prop
+  const displayReservations = (activeReservations && historyReservations)
     ? (reservationView === 'active' ? activeReservations : historyReservations)
     : (reservations || [])
   
@@ -127,9 +131,30 @@ export function ReservationsTable({
   })
   
   // Filter by status (multi-select)
-  const filteredReservations = statusFilters.length === 0
+  const statusFilteredReservations = statusFilters.length === 0
     ? sortedReservations 
     : sortedReservations.filter(r => statusFilters.includes(r.status))
+  
+  // Filter by search query (name, phone, email)
+  const searchTerm = (searchQuery || '').trim()
+  const filteredReservations = searchTerm === ''
+    ? statusFilteredReservations
+    : statusFilteredReservations.filter(r => {
+        const query = searchTerm.toLowerCase()
+        
+        // Search by name
+        const nameMatch = (r.name || '').toLowerCase().includes(query)
+        
+        // Search by phone (remove all non-digits for comparison)
+        const phoneDigits = (r.phone || '').replace(/\D/g, '')
+        const queryDigits = query.replace(/\D/g, '')
+        const phoneMatch = queryDigits.length > 0 && phoneDigits.includes(queryDigits)
+        
+        // Search by email
+        const emailMatch = (r.email || '').toLowerCase().includes(query)
+        
+        return nameMatch || phoneMatch || emailMatch
+      })
   
   // Calculate pagination
   const totalPages = Math.ceil(filteredReservations.length / itemsPerPage)
@@ -137,12 +162,17 @@ export function ReservationsTable({
   const endIndex = startIndex + itemsPerPage
   const currentReservations = filteredReservations.slice(startIndex, endIndex)
   
-  // Reset to page 1 when filter changes or view changes
+  // Reset to page 1 when view changes or search query changes
   useEffect(() => {
     setCurrentPage(1)
     setSortColumn(null)
     setStatusFilters([])
-  }, [statusFilters, reservationView])
+  }, [reservationView])
+  
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
   
   // Toggle status filter
   const toggleStatusFilter = (status: string) => {
@@ -197,6 +227,21 @@ export function ReservationsTable({
         <h3 className="mt-4 text-lg font-semibold gradient-text">No Upcoming Reservations</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           New reservations made by guests will appear here.
+        </p>
+      </div>
+    )
+  }
+  
+  // Show "No results" message when search returns no results
+  if (searchTerm && filteredReservations.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center h-[400px]">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+          <Calendar className="h-10 w-10 text-primary" />
+        </div>
+        <h3 className="mt-4 text-lg font-semibold gradient-text">No Results Found</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          No reservations match your search query "{searchTerm}".
         </p>
       </div>
     )

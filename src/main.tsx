@@ -49,85 +49,51 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/reserve" replace /> },
-  { path: '/dashboard', element: <Navigate to="/dashboard/reservations" replace /> },
-  { path: '/dashboard/waitlist', element: <Shell><WaitlistPage /></Shell> },
-  { path: '/dashboard/reservations', element: <Shell><ReservationsPage /></Shell> },
-  { path: '/dashboard/buzz', element: <Shell><BuzzPage /></Shell> },
-  { path: '/dashboard/settings/reservations', element: <Shell><ReservationSettingsPage /></Shell> },
+  // Root redirects to admin (no default restaurant)
+  { path: '/', element: <Navigate to="/admin" replace /> },
   
-  // Path-based routes with novaref_id
-  { path: '/:novaref_id/dashboard', element: <Navigate to="./reservations" replace /> },
-  { path: '/:novaref_id/dashboard/waitlist', element: <Shell><WaitlistPage /></Shell> },
-  { path: '/:novaref_id/dashboard/reservations', element: <Shell><ReservationsPage /></Shell> },
-  { path: '/:novaref_id/dashboard/buzz', element: <Shell><BuzzPage /></Shell> },
-  { path: '/:novaref_id/dashboard/settings/reservations', element: <Shell><ReservationSettingsPage /></Shell> },
-  { 
-    path: '/reserve', 
-    element: (
-      <RestaurantGuard>
-        <GuestReservationPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/:novaref_id/reserve', 
-    element: (
-      <RestaurantGuard>
-        <GuestReservationPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/payment/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <PaymentPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/reserve/confirm/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <ReservationConfirmationPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/reserve/payment/failed/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <PaymentFailedPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/:novaref_id/payment/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <PaymentPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/:novaref_id/reserve/confirm/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <ReservationConfirmationPage />
-      </RestaurantGuard>
-    )
-  },
-  { 
-    path: '/:novaref_id/reserve/payment/failed/:reservationId', 
-    element: (
-      <RestaurantGuard>
-        <PaymentFailedPage />
-      </RestaurantGuard>
-    )
-  },
+  // Admin routes
   { path: '/admin', element: <AdminPanel /> },
   { path: '/admin/*', element: <AdminPanel /> },
+  
+  // Restaurant slug-based routes (e.g., /bill/dashboard/reservations)
+  { path: '/:restaurant_slug/dashboard', element: <Navigate to="./reservations" replace /> },
+  { path: '/:restaurant_slug/dashboard/waitlist', element: <Shell><WaitlistPage /></Shell> },
+  { path: '/:restaurant_slug/dashboard/reservations', element: <Shell><ReservationsPage /></Shell> },
+  { path: '/:restaurant_slug/dashboard/buzz', element: <Shell><BuzzPage /></Shell> },
+  { path: '/:restaurant_slug/dashboard/settings/reservations', element: <Shell><ReservationSettingsPage /></Shell> },
+  { 
+    path: '/:restaurant_slug/reserve', 
+    element: (
+      <RestaurantGuard>
+        <GuestReservationPage />
+      </RestaurantGuard>
+    )
+  },
+  { 
+    path: '/:restaurant_slug/payment/:reservationId', 
+    element: (
+      <RestaurantGuard>
+        <PaymentPage />
+      </RestaurantGuard>
+    )
+  },
+  { 
+    path: '/:restaurant_slug/reserve/confirm/:reservationId', 
+    element: (
+      <RestaurantGuard>
+        <ReservationConfirmationPage />
+      </RestaurantGuard>
+    )
+  },
+  { 
+    path: '/:restaurant_slug/reserve/payment/failed/:reservationId', 
+    element: (
+      <RestaurantGuard>
+        <PaymentFailedPage />
+      </RestaurantGuard>
+    )
+  },
 ])
 
 createRoot(document.getElementById('root')!).render(

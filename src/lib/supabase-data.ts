@@ -1,22 +1,46 @@
 import { supabase, type Restaurant, type Table, type WaitlistEntry, type Reservation, type TimeSlot, type MessageHistory } from './supabase'
-import { getSubdomain } from './subdomain-utils'
+import { getRestaurantSlug } from './subdomain-utils'
 
 /**
- * Gets the current restaurant ID from subdomain
- * This replaces the old hardcoded restaurant lookup
+ * Gets the current restaurant ID from path-based routing (slug or novaref_id)
+ * Uses the same logic as restaurant-context.tsx
  */
 export async function getRestaurantId(): Promise<string> {
   if (!supabase) throw new Error('Supabase client not initialized')
   
-  const subdomain = getSubdomain()
-  
-  if (!subdomain) {
-    // Fallback to default for development or when no subdomain
-    const defaultSubdomain = import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+  // Check if URL has novaref_id in path (e.g., /713df1ae.../dashboard/reservations)
+  let novaRefId: string | null = null
+  if (typeof window !== 'undefined') {
+    const pathParts = window.location.pathname.split('/').filter(Boolean)
+    // Check if first part looks like a UUID (novaref_id)
+    if (pathParts.length > 0 && pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      novaRefId = pathParts[0]
+    }
+  }
+
+  // If novaref_id in path, load restaurant by novaref_id
+  if (novaRefId) {
     const { data, error } = await supabase
       .from('restaurants')
       .select('id')
-      .eq('subdomain', defaultSubdomain)
+      .eq('novaref_id', novaRefId)
+      .single()
+
+    if (error || !data) {
+      throw new Error(`Restaurant with ID "${novaRefId}" not found.`)
+    }
+    return data.id
+  }
+
+  const restaurantSlug = getRestaurantSlug()
+  
+  if (!restaurantSlug) {
+    // Fallback to default for development or when no slug
+    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('slug', defaultSlug)
       .single()
     if (error) throw new Error(`Failed to get restaurant: ${error.message}`)
     return data.id
@@ -25,28 +49,52 @@ export async function getRestaurantId(): Promise<string> {
   const { data, error } = await supabase
     .from('restaurants')
     .select('id')
-    .eq('subdomain', subdomain)
+    .eq('slug', restaurantSlug)
     .single()
   
-  if (error) throw new Error(`Failed to get restaurant for subdomain "${subdomain}": ${error.message}`)
+  if (error) throw new Error(`Failed to get restaurant for slug "${restaurantSlug}": ${error.message}`)
   return data.id
 }
 
 /**
- * Gets the current restaurant by subdomain
+ * Gets the current restaurant by path-based routing (slug or novaref_id)
  */
 export async function getRestaurant(): Promise<Restaurant> {
   if (!supabase) throw new Error('Supabase client not initialized')
   
-  const subdomain = getSubdomain()
-  
-  if (!subdomain) {
-    // Fallback to default for development
-    const defaultSubdomain = import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+  // Check if URL has novaref_id in path (e.g., /713df1ae.../dashboard/reservations)
+  let novaRefId: string | null = null
+  if (typeof window !== 'undefined') {
+    const pathParts = window.location.pathname.split('/').filter(Boolean)
+    // Check if first part looks like a UUID (novaref_id)
+    if (pathParts.length > 0 && pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      novaRefId = pathParts[0]
+    }
+  }
+
+  // If novaref_id in path, load restaurant by novaref_id
+  if (novaRefId) {
     const { data, error } = await supabase
       .from('restaurants')
       .select('*')
-      .eq('subdomain', defaultSubdomain)
+      .eq('novaref_id', novaRefId)
+      .single()
+
+    if (error || !data) {
+      throw new Error(`Restaurant with ID "${novaRefId}" not found.`)
+    }
+    return data
+  }
+
+  const restaurantSlug = getRestaurantSlug()
+  
+  if (!restaurantSlug) {
+    // Fallback to default for development
+    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('slug', defaultSlug)
       .single()
     if (error) throw new Error(`Failed to get restaurant: ${error.message}`)
     return data
@@ -55,10 +103,10 @@ export async function getRestaurant(): Promise<Restaurant> {
   const { data, error } = await supabase
     .from('restaurants')
     .select('*')
-    .eq('subdomain', subdomain)
+    .eq('slug', restaurantSlug)
     .single()
   
-  if (error) throw new Error(`Failed to get restaurant for subdomain "${subdomain}": ${error.message}`)
+  if (error) throw new Error(`Failed to get restaurant for slug "${restaurantSlug}": ${error.message}`)
   return data
 }
 

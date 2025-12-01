@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Loader2, CheckCircle2, CreditCard, Calendar, Clock, Users, DollarSign, User } from 'lucide-react'
@@ -9,18 +9,39 @@ import { useToast } from '../hooks/use-toast'
 import { Toaster } from '../components/ui/toaster'
 import { getReservation, updateReservationPaymentAmount, getRestaurant } from '../lib/supabase-data'
 import { getMerchantConfig, createCheckoutSession } from '../lib/nova-api'
+import { useRestaurant } from '../lib/restaurant-context'
 import type { Reservation } from '../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
 export default function PaymentPage() {
   const { reservationId } = useParams<{ reservationId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { restaurant } = useRestaurant()
   const { toast } = useToast()
   const [reservation, setReservation] = useState<Reservation | null>(null)
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState<string>('')
   const [paymentSettings, setPaymentSettings] = useState<any>(null)
+
+  // Get restaurant prefix from URL path
+  const getRestaurantPrefix = () => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      // Check if it's a UUID (novaref_id)
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      // It's a restaurant slug
+      return `/${pathParts[0]}`
+    }
+    // Fallback to restaurant slug from context
+    if (restaurant?.slug) {
+      return `/${restaurant.slug}`
+    }
+    return ''
+  }
 
   // Get user's local timezone
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -179,11 +200,12 @@ export default function PaymentPage() {
       }
 
       // Step 2: Create checkout session
-      // Always use window.location.origin to preserve subdomain
-      // This ensures we redirect back to the same subdomain (e.g., default.localhost:5173)
+      // Always use window.location.origin to preserve path-based routing
+      // This ensures we redirect back to the same restaurant path
       const baseUrl = window.location.origin
-      const successUrl = `${baseUrl}/reserve/confirm/${reservationId}`
-      const failureUrl = `${baseUrl}/reserve/payment/failed/${reservationId}`
+      const restaurantPrefix = getRestaurantPrefix()
+      const successUrl = `${baseUrl}${restaurantPrefix}/reserve/confirm/${reservationId}`
+      const failureUrl = `${baseUrl}${restaurantPrefix}/reserve/payment/failed/${reservationId}`
 
       // Save payment amount to reservation before redirecting
       await updateReservationPaymentAmount(reservationId, amount)

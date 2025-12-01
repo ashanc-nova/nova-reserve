@@ -4,9 +4,10 @@ import { useGlobalState } from '../lib/global-state'
 import { ReservationsTable } from '../components/dashboard/ReservationsTable'
 import { ReservationSettingsFull } from '../components/dashboard/ReservationSettingsFull'
 import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { Settings, Calendar, Clock, Users, TrendingUp, History, ChevronLeft, RefreshCw } from 'lucide-react'
-import { addDays } from 'date-fns'
+import { Settings, Calendar, Clock, Users, TrendingUp, History, ChevronLeft, RefreshCw, Search } from 'lucide-react'
+import { addDays, subDays } from 'date-fns'
 import { getRestaurant } from '../lib/supabase-data'
 import { setRestaurantTimezone, getZonedDate, formatTimeInTimezone } from '../lib/timezone-utils'
 import { cn } from '../lib/utils'
@@ -20,6 +21,7 @@ export default function ReservationsPage() {
   const [activeView, setActiveView] = useState<'reservations' | 'settings'>('reservations')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [reservationView, setReservationView] = useState<'active' | 'past'>('active')
+  const [searchQuery, setSearchQuery] = useState('')
   const [kpiVisibility, setKpiVisibility] = useState({
     showAvgPartySize: false,
     showPeakHour: false,
@@ -131,14 +133,22 @@ export default function ReservationsPage() {
     ? ((cancelledCount / allReservations.length) * 100).toFixed(1)
     : '0'
 
-  // Filter out seated and cancelled reservations from main table
+  // Filter out seated and cancelled reservations from main table (Active tab - all active reservations)
   const activeReservations = allReservations.filter(
     r => r.status !== 'seated' && r.status !== 'cancelled'
   )
   
-  // Get seated and cancelled reservations for history
+  // Get seated and cancelled reservations for history (Past tab - only past 30 days)
+  const thirtyDaysAgo = subDays(new Date(), 30)
   const historyReservations = allReservations.filter(
-    r => r.status === 'seated' || r.status === 'cancelled'
+    r => {
+      const isSeatedOrCancelled = r.status === 'seated' || r.status === 'cancelled'
+      if (!isSeatedOrCancelled) return false
+      
+      // Filter to only include reservations from the past 30 days
+      const reservationDate = new Date(r.date_time)
+      return reservationDate >= thirtyDaysAgo
+    }
   )
 
   // In embed mode, use activeView state instead of separate flags
@@ -157,16 +167,6 @@ export default function ReservationsPage() {
   // Floating Buttons Component - Always visible in embed mode
   const FloatingButtons = isEmbedded ? (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-4">
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={handleRefresh}
-        disabled={isRefreshing}
-        className="h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-border hover:bg-card"
-        title="Refresh"
-      >
-        <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
-      </Button>
       <Button
         variant={activeView === 'reservations' ? 'default' : 'outline'}
         size="icon"
@@ -254,39 +254,90 @@ export default function ReservationsPage() {
 
       {/* Header Section - Hidden in embed mode */}
       {!isEmbedded && (
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl sm:text-2xl font-bold gradient-text">Reservations</h2>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="bg-card/50 hover:bg-card border-primary/20"
-              title="Refresh"
-            >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => setIsHistoryOpen(true)}
-              className="bg-card/50 hover:bg-card border-primary/20"
-              title="View History"
-            >
-              <History className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => setIsSettingsOpen(true)}
-              className="bg-card/50 hover:bg-card border-primary/20"
-              title="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold gradient-text">Reservations</h2>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="bg-card/50 hover:bg-card border-primary/20"
+                title="Refresh"
+              >
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => setIsHistoryOpen(true)}
+                className="bg-card/50 hover:bg-card border-primary/20"
+                title="View History"
+              >
+                <History className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => setIsSettingsOpen(true)}
+                className="bg-card/50 hover:bg-card border-primary/20"
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+          {/* Active/Past Tabs and Search - Desktop view */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="inline-flex rounded-lg border border-border bg-muted p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setReservationView('active')
+                  setSearchQuery('')
+                }}
+                className={cn(
+                  "px-6 py-2 text-sm font-medium transition-all rounded-md",
+                  reservationView === 'active' 
+                    ? 'bg-primary !text-white hover:bg-primary/90 shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-transparent'
+                )}
+              >
+                Active
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setReservationView('past')
+                  setSearchQuery('')
+                }}
+                className={cn(
+                  "px-6 py-2 text-sm font-medium transition-all rounded-md",
+                  reservationView === 'past' 
+                    ? 'bg-primary !text-white hover:bg-primary/90 shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-transparent'
+                )}
+              >
+                Past
+              </Button>
+            </div>
+            <div className="flex items-center gap-2 flex-1 max-w-xs ml-auto">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, phone, or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9 text-sm bg-card/50 border-primary/20"
+                />
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Dashboard Metrics - Only render if settings are loaded and at least one KPI is visible */}
@@ -400,15 +451,16 @@ export default function ReservationsPage() {
       </div>
       )}
 
-      {/* Active/Past Tabs - Only in embedded view */}
+      {/* Active/Past Tabs and Search - Embedded view */}
       {isEmbedded && (
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <div className="inline-flex rounded-lg border border-border bg-muted p-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setReservationView('active')
+                setSearchQuery('')
               }}
               className={cn(
                 "px-6 py-2 text-sm font-medium transition-all rounded-md",
@@ -424,6 +476,7 @@ export default function ReservationsPage() {
               size="sm"
               onClick={() => {
                 setReservationView('past')
+                setSearchQuery('')
               }}
               className={cn(
                 "px-6 py-2 text-sm font-medium transition-all rounded-md",
@@ -433,6 +486,28 @@ export default function ReservationsPage() {
               )}
             >
               Past
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-1 max-w-xs ml-auto">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder=""
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 text-sm bg-card/50 border-primary/20"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="bg-card/50 hover:bg-card border-primary/20 flex-shrink-0"
+              title="Refresh"
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
           </div>
         </div>
@@ -449,6 +524,7 @@ export default function ReservationsPage() {
             isEmbedded={isEmbedded}
             reservationView={reservationView}
             onReservationViewChange={setReservationView}
+            searchQuery={searchQuery}
           />
         </div>
       </div>

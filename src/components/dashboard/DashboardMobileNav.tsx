@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { PanelLeft } from 'lucide-react'
 import { Button } from '../ui/button'
 import {
@@ -8,6 +8,7 @@ import {
   SheetTrigger,
 } from '../ui/sheet'
 import { Logo } from '../layout/Logo'
+import { useRestaurant } from '../../lib/restaurant-context'
 import { cn } from '../../lib/utils'
 
 interface DashboardMobileNavProps {
@@ -18,9 +19,28 @@ interface DashboardMobileNavProps {
 export function DashboardMobileNav({ activeView, onViewChange }: DashboardMobileNavProps) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const { restaurant } = useRestaurant()
+
+  // Get restaurant prefix from URL or context
+  const getRestaurantPrefix = () => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      return `/${pathParts[0]}`
+    }
+    if (restaurant?.slug) {
+      return `/${restaurant.slug}`
+    }
+    return ''
+  }
+
+  const restaurantPrefix = getRestaurantPrefix()
 
   const handleNav = (view: string, path: string) => {
-    navigate(path)
+    navigate(`${restaurantPrefix}${path}`)
     onViewChange?.(view)
     setOpen(false)
   }

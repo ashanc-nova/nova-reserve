@@ -96,3 +96,13 @@
     @apply bg-gradient-to-b from-[#2A4FD6] to-[#1a2f8a] bg-clip-text text-transparent;
   }
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}

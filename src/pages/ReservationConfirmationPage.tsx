@@ -1,21 +1,40 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { CheckCircle2, DollarSign, Mail, Star, MessageSquare, Calendar, Clock, Users, User, Phone } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { Toaster } from '../components/ui/toaster'
 import { getReservation } from '../lib/supabase-data'
+import { useRestaurant } from '../lib/restaurant-context'
 import type { Reservation } from '../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
 
 export default function ReservationConfirmationPage() {
   const { reservationId } = useParams<{ reservationId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { restaurant } = useRestaurant()
   const [searchParams] = useSearchParams()
   const { toast } = useToast()
   const [reservation, setReservation] = useState<Reservation | null>(null)
   const [loading, setLoading] = useState(true)
   const paymentStatus = searchParams.get('payment_status')
+
+  // Get restaurant prefix from URL path
+  const getRestaurantPrefix = () => {
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      return `/${pathParts[0]}`
+    }
+    if (restaurant?.slug) {
+      return `/${restaurant.slug}`
+    }
+    return ''
+  }
+  const restaurantPrefix = getRestaurantPrefix()
 
   // Get user's local timezone
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -212,7 +231,7 @@ export default function ReservationConfirmationPage() {
           {/* Action Button */}
           <div className="pt-4">
             <Button 
-              onClick={() => navigate('/reserve')} 
+              onClick={() => navigate(`${restaurantPrefix}/reserve`)} 
               variant="outline" 
               className="w-full sm:w-auto px-6 sm:px-8 h-11 sm:h-12 text-sm sm:text-base font-semibold border-2 hover:bg-card/80 hover:border-primary/50 transition-all"
             >

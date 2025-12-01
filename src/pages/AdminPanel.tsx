@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { isAdminSubdomain, getSubdomain } from '../lib/subdomain-utils'
+import { isAdminSubdomain, getRestaurantSlug } from '../lib/subdomain-utils'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -14,7 +14,7 @@ import {
   deleteRestaurant
 } from '../lib/admin-data'
 import type { Restaurant } from '../lib/supabase'
-import { validateSubdomain, normalizeSubdomain } from '../lib/subdomain-utils'
+import { validateRestaurantSlug, normalizeRestaurantSlug } from '../lib/subdomain-utils'
 import { Plus, Edit, Trash2, Building2, Loader2, Save, X } from 'lucide-react'
 import {
   Dialog,
@@ -44,19 +44,19 @@ export default function AdminPanel() {
   const [restaurantToDelete, setRestaurantToDelete] = useState<Restaurant | null>(null)
   const { toast } = useToast()
 
-  // Check if we're on admin subdomain or no subdomain
+  // Check if we're on a restaurant path (not admin)
   useEffect(() => {
-    const subdomain = getSubdomain()
-    if (subdomain && !isAdminSubdomain()) {
-      // Redirect to restaurant dashboard if on a restaurant subdomain
-      window.location.href = `http://${subdomain}.${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}/dashboard/waitlist`
+    const slug = getRestaurantSlug()
+    if (slug && !isAdminSubdomain()) {
+      // Redirect to restaurant dashboard if on a restaurant path
+      window.location.href = `/${slug}/dashboard/waitlist`
     }
   }, [])
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    subdomain: '',
+    slug: '',
     description: '',
     address: '',
     phone: '',
@@ -89,7 +89,7 @@ export default function AdminPanel() {
       setEditingRestaurant(restaurant)
       setFormData({
         name: restaurant.name || '',
-        subdomain: restaurant.subdomain || '',
+        slug: restaurant.slug || restaurant.subdomain || '',
         description: restaurant.description || '',
         address: restaurant.address || '',
         phone: restaurant.phone || '',
@@ -100,7 +100,7 @@ export default function AdminPanel() {
       setEditingRestaurant(null)
       setFormData({
         name: '',
-        subdomain: '',
+        slug: '',
         description: '',
         address: '',
         phone: '',
@@ -116,7 +116,7 @@ export default function AdminPanel() {
     setEditingRestaurant(null)
     setFormData({
       name: '',
-      subdomain: '',
+      slug: '',
       description: '',
       address: '',
       phone: '',
@@ -128,12 +128,12 @@ export default function AdminPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate subdomain
-    const normalizedSubdomain = normalizeSubdomain(formData.subdomain)
-    const validation = validateSubdomain(normalizedSubdomain)
+    // Validate slug
+    const normalizedSlug = normalizeRestaurantSlug(formData.slug)
+    const validation = validateRestaurantSlug(normalizedSlug)
     if (!validation.valid) {
       toast({
-        title: 'Invalid Subdomain',
+        title: 'Invalid Slug',
         description: validation.error,
         variant: 'destructive',
       })
@@ -144,7 +144,8 @@ export default function AdminPanel() {
       if (editingRestaurant) {
         await updateRestaurant(editingRestaurant.id, {
           name: formData.name,
-          subdomain: normalizedSubdomain,
+          slug: normalizedSlug,
+          subdomain: normalizedSlug, // Keep subdomain for backward compatibility
           description: formData.description || undefined,
           address: formData.address || undefined,
           phone: formData.phone || undefined,
@@ -158,7 +159,8 @@ export default function AdminPanel() {
       } else {
         await createRestaurant({
           name: formData.name,
-          subdomain: normalizedSubdomain,
+          slug: normalizedSlug,
+          subdomain: normalizedSlug, // Keep subdomain for backward compatibility
           description: formData.description || undefined,
           address: formData.address || undefined,
           phone: formData.phone || undefined,
@@ -207,19 +209,10 @@ export default function AdminPanel() {
     }
   }
 
-  const getRestaurantUrl = (subdomain: string) => {
+  const getRestaurantUrl = (slug: string) => {
     if (typeof window === 'undefined') return ''
-    const hostname = window.location.hostname
-    const port = window.location.port ? `:${window.location.port}` : ''
-    
-    // For localhost development
-    if (hostname.includes('localhost') || hostname === '127.0.0.1') {
-      return `http://${subdomain}.localhost${port}`
-    }
-    
-    // For production
-    const baseDomain = hostname.split('.').slice(-2).join('.')
-    return `https://${subdomain}.${baseDomain}`
+    const baseUrl = window.location.origin
+    return `${baseUrl}/${slug}`
   }
 
   if (loading) {
@@ -271,17 +264,17 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="subdomain" className="text-sm sm:text-base">Subdomain *</Label>
+                    <Label htmlFor="slug" className="text-sm sm:text-base">Restaurant Slug *</Label>
                     <Input
-                      id="subdomain"
-                      value={formData.subdomain}
-                      onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
+                      id="slug"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                       required
                       placeholder="joes-pizza"
                       className="bg-background/50 border-border"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Lowercase letters, numbers, and hyphens only. Will be used as {formData.subdomain ? `${formData.subdomain}.novaqueue.com` : 'subdomain.novaqueue.com'}
+                      Lowercase letters, numbers, and hyphens only. Will be used in URLs as {formData.slug ? `domain.com/${formData.slug}` : 'domain.com/slug'}
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -364,7 +357,7 @@ export default function AdminPanel() {
                       <div>
                         <CardTitle className="gradient-text">{restaurant.name}</CardTitle>
                         <CardDescription className="text-muted-foreground">
-                          {restaurant.subdomain || 'No subdomain'}
+                          {restaurant.slug || restaurant.subdomain || 'No slug'}
                         </CardDescription>
                       </div>
                     </div>
@@ -392,25 +385,25 @@ export default function AdminPanel() {
                   {restaurant.description && (
                     <p className="text-sm text-muted-foreground">{restaurant.description}</p>
                   )}
-                  {restaurant.subdomain && (
+                  {(restaurant.slug || restaurant.subdomain) && (
                     <div className="pt-2 border-t border-border">
                       <p className="text-xs text-muted-foreground mb-1">Access URLs:</p>
                       <div className="space-y-1">
                         <a
-                          href={getRestaurantUrl(restaurant.subdomain)}
+                          href={`${getRestaurantUrl(restaurant.slug || restaurant.subdomain || '')}/dashboard`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline block"
                         >
-                          {getRestaurantUrl(restaurant.subdomain)}/dashboard
+                          {getRestaurantUrl(restaurant.slug || restaurant.subdomain || '')}/dashboard
                         </a>
                         <a
-                          href={`${getRestaurantUrl(restaurant.subdomain)}/reserve`}
+                          href={`${getRestaurantUrl(restaurant.slug || restaurant.subdomain || '')}/reserve`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline block"
                         >
-                          {getRestaurantUrl(restaurant.subdomain)}/reserve
+                          {getRestaurantUrl(restaurant.slug || restaurant.subdomain || '')}/reserve
                         </a>
                       </div>
                     </div>

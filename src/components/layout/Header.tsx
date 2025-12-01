@@ -4,11 +4,13 @@ import { Button } from '../ui/button'
 import { Moon, Sun } from 'lucide-react'
 import { DashboardMobileNav } from '../dashboard/DashboardMobileNav'
 import { useTheme } from '../../lib/theme-context'
+import { useRestaurant } from '../../lib/restaurant-context'
 import { cn } from '../../lib/utils'
 
 export function Header() {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
+  const { restaurant } = useRestaurant()
   
   const getActiveView = () => {
     if (location.pathname.includes('/waitlist')) return 'waitlist'
@@ -17,14 +19,38 @@ export function Header() {
     return 'reservations'
   }
 
+  // Get restaurant slug from URL path or restaurant context
+  const getRestaurantPrefix = () => {
+    // First, try to extract from current path
+    const pathParts = location.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 0 && !['admin', 'reserve', 'payment'].includes(pathParts[0])) {
+      // Check if it's a UUID (novaref_id)
+      if (pathParts[0].match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return `/${pathParts[0]}`
+      }
+      // It's a restaurant slug
+      return `/${pathParts[0]}`
+    }
+    
+    // Fallback to restaurant slug from context
+    if (restaurant?.slug) {
+      return `/${restaurant.slug}`
+    }
+    
+    // No restaurant context
+    return ''
+  }
+
+  const restaurantPrefix = getRestaurantPrefix()
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-xl md:px-6">
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-        <Link to="/dashboard/reservations" className="flex items-center gap-2 text-lg font-semibold md:text-base">
+        <Link to={`${restaurantPrefix}/dashboard/reservations`} className="flex items-center gap-2 text-lg font-semibold md:text-base">
           <Logo />
         </Link>
         {/* <NavLink
-          to="/dashboard/waitlist"
+          to={`${restaurantPrefix}/dashboard/waitlist`}
           className={({ isActive }) =>
             cn(
               "transition-colors hover:text-foreground font-medium whitespace-nowrap",
@@ -35,7 +61,7 @@ export function Header() {
           Waitlist
         </NavLink> */}
         <NavLink
-          to="/dashboard/reservations"
+          to={`${restaurantPrefix}/dashboard/reservations`}
           className={({ isActive }) =>
             cn(
               "transition-colors hover:text-foreground font-medium whitespace-nowrap",
@@ -46,7 +72,7 @@ export function Header() {
           Reservations
         </NavLink>
         {/* <NavLink
-          to="/dashboard/buzz"
+          to={`${restaurantPrefix}/dashboard/buzz`}
           className={({ isActive }) =>
             cn(
               "transition-colors hover:text-foreground font-medium whitespace-nowrap",

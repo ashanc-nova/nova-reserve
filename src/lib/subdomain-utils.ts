@@ -1,117 +1,138 @@
 /**
- * Subdomain detection and validation utilities
- */
-
-/**
- * Extracts subdomain from the current hostname
- * @returns The subdomain or null if not found
+ * Restaurant slug detection and validation utilities
+ * New implementation: Path-based routing instead of subdomain-based
  * 
  * Examples:
- * - "joes-pizza.localhost:5173" -> "joes-pizza"
- * - "admin.localhost:5173" -> "admin"
- * - "localhost:5173" -> null
- * - "joes-pizza.novaqueue.com" -> "joes-pizza"
- * - "nova-reserve.netlify.app" -> null (if VITE_BASE_DOMAIN=nova-reserve.netlify.app)
- * - "joes-pizza.nova-reserve.netlify.app" -> "joes-pizza"
+ * - "domain.com/bill/reserve" -> "bill"
+ * - "domain.com/admin" -> null (admin, no restaurant)
+ * - "domain.com/reserve" -> null (no restaurant slug)
+ * - "domain.com/713df1ae-.../dashboard" -> null (UUID, handled separately)
+ */
+
+/**
+ * Extracts restaurant slug from the current URL path
+ * @returns The restaurant slug or null if not found
+ * 
+ * Examples:
+ * - "/bill/reserve" -> "bill"
+ * - "/bill/dashboard/reservations" -> "bill"
+ * - "/admin" -> null
+ * - "/reserve" -> null
+ * - "/713df1ae-84f5-45b0-b5c7-c8084a647197/dashboard" -> null (UUID)
+ */
+export function getRestaurantSlug(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const pathname = window.location.pathname
+  const pathParts = pathname.split('/').filter(Boolean)
+
+  // No path parts
+  if (pathParts.length === 0) {
+    return null
+  }
+
+  const firstPart = pathParts[0]
+
+  // Reserved paths that are not restaurant slugs
+  const reservedPaths = ['admin', 'reserve', 'payment']
+  if (reservedPaths.includes(firstPart.toLowerCase())) {
+    return null
+  }
+
+  // Check if it's a UUID (novaref_id) - not a restaurant slug
+  if (firstPart.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    return null
+  }
+
+  // First part is the restaurant slug
+  return firstPart
+}
+
+/**
+ * Legacy function for backward compatibility
+ * Now returns restaurant slug from path instead of subdomain
+ * @deprecated Use getRestaurantSlug() instead
  */
 export function getSubdomain(): string | null {
-  if (typeof window === 'undefined') {
-    // Server-side: would need to extract from request headers
-    return null
-  }
-
-  const hostname = window.location.hostname
-  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'localhost'
-
-  // Handle localhost development
-  if (hostname.includes('localhost') || hostname === '127.0.0.1') {
-    const parts = hostname.split('.')
-    // For localhost, check if there's a subdomain before "localhost"
-    // Format: subdomain.localhost or subdomain.127.0.0.1
-    if (parts.length >= 2 && parts[0] !== 'localhost' && parts[0] !== '127') {
-      return parts[0]
-    }
-    // Could also check for subdomain in the path or query params as fallback
-    return null
-  }
-
-  // Production: Check against base domain
-  // If current hostname IS the base domain, there's no subdomain
-  if (hostname === baseDomain) {
-    return null
-  }
-
-  // If current hostname ends with base domain and has more parts, extract subdomain
-  if (hostname.endsWith(`.${baseDomain}`)) {
-    // Extract everything before the base domain
-    const subdomain = hostname.slice(0, -(baseDomain.length + 1))
-    return subdomain || null
-  }
-
-  // IMPORTANT: Don't guess subdomains if base domain is not properly configured
-  // This prevents false positives when VITE_BASE_DOMAIN is not set in production
-  console.warn(`[Subdomain Detection] Base domain "${baseDomain}" does not match current hostname "${hostname}". Please set VITE_BASE_DOMAIN environment variable to "${hostname}" in your hosting provider.`)
-  
-  // No subdomain found
-  return null
+  return getRestaurantSlug()
 }
 
 /**
- * Checks if the current subdomain is the admin subdomain
+ * Checks if the current path is the admin path
  */
 export function isAdminSubdomain(): boolean {
-  const subdomain = getSubdomain()
-  return subdomain === 'admin'
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return window.location.pathname.startsWith('/admin')
 }
 
 /**
- * Checks if the current subdomain is a valid restaurant subdomain
+ * Checks if the current path has a valid restaurant slug
  */
 export function isRestaurantSubdomain(): boolean {
-  const subdomain = getSubdomain()
-  return subdomain !== null && subdomain !== 'admin' && subdomain !== 'www'
+  const slug = getRestaurantSlug()
+  return slug !== null
 }
 
 /**
- * Validates subdomain format
+ * Validates restaurant slug format
  * Rules: lowercase, alphanumeric and hyphens only, 3-63 characters
  */
-export function validateSubdomain(subdomain: string): { valid: boolean; error?: string } {
-  if (!subdomain) {
-    return { valid: false, error: 'Subdomain is required' }
+export function validateRestaurantSlug(slug: string): { valid: boolean; error?: string } {
+  if (!slug) {
+    return { valid: false, error: 'Restaurant slug is required' }
   }
 
-  if (subdomain.length < 3) {
-    return { valid: false, error: 'Subdomain must be at least 3 characters' }
+  if (slug.length < 3) {
+    return { valid: false, error: 'Restaurant slug must be at least 3 characters' }
   }
 
-  if (subdomain.length > 63) {
-    return { valid: false, error: 'Subdomain must be less than 63 characters' }
+  if (slug.length > 63) {
+    return { valid: false, error: 'Restaurant slug must be less than 63 characters' }
   }
 
   // Must start and end with alphanumeric
-  if (!/^[a-z0-9]/.test(subdomain) || !/[a-z0-9]$/.test(subdomain)) {
-    return { valid: false, error: 'Subdomain must start and end with a letter or number' }
+  if (!/^[a-z0-9]/.test(slug) || !/[a-z0-9]$/.test(slug)) {
+    return { valid: false, error: 'Restaurant slug must start and end with a letter or number' }
   }
 
   // Only lowercase letters, numbers, and hyphens
-  if (!/^[a-z0-9-]+$/.test(subdomain)) {
-    return { valid: false, error: 'Subdomain can only contain lowercase letters, numbers, and hyphens' }
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    return { valid: false, error: 'Restaurant slug can only contain lowercase letters, numbers, and hyphens' }
   }
 
-  // Reserved subdomains
-  const reserved = ['admin', 'www', 'api', 'app', 'mail', 'ftp', 'localhost', 'test', 'staging', 'dev']
-  if (reserved.includes(subdomain.toLowerCase())) {
-    return { valid: false, error: 'This subdomain is reserved' }
+  // Reserved slugs
+  const reserved = ['admin', 'api', 'reserve', 'payment', 'dashboard', 'settings']
+  if (reserved.includes(slug.toLowerCase())) {
+    return { valid: false, error: 'This slug is reserved' }
   }
 
   return { valid: true }
 }
 
 /**
- * Normalizes subdomain (lowercase, trim)
+ * Normalizes restaurant slug (lowercase, trim)
+ */
+export function normalizeRestaurantSlug(slug: string): string {
+  return slug.toLowerCase().trim()
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use validateRestaurantSlug() instead
+ */
+export function validateSubdomain(subdomain: string): { valid: boolean; error?: string } {
+  return validateRestaurantSlug(subdomain)
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use normalizeRestaurantSlug() instead
  */
 export function normalizeSubdomain(subdomain: string): string {
-  return subdomain.toLowerCase().trim()
+  return normalizeRestaurantSlug(subdomain)
 }
 
