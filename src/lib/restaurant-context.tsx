@@ -84,8 +84,14 @@ export function RestaurantProvider({ children }: { children: ReactNode }) {
           const path = window.location.pathname
           // Routes that need a restaurant but don't have slug
           if (path.startsWith('/reserve') || path.startsWith('/payment')) {
-            // Try to use default restaurant for development
-            const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || 'default'
+            // Try to use default restaurant slug from environment if configured
+            const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG
+            if (!defaultSlug) {
+              setError('Restaurant slug is required. Please configure VITE_DEFAULT_RESTAURANT_SLUG or use a restaurant slug in the URL.')
+              setRestaurant(null)
+              setLoading(false)
+              return
+            }
             console.log('[Restaurant Context] No slug in guest route, trying default:', defaultSlug)
             
             const { data, error: fetchError } = await supabase

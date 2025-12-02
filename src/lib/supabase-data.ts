@@ -35,8 +35,11 @@ export async function getRestaurantId(): Promise<string> {
   const restaurantSlug = getRestaurantSlug()
   
   if (!restaurantSlug) {
-    // Fallback to default for development or when no slug
-    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+    // Try to use default restaurant slug from environment if configured
+    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN
+    if (!defaultSlug) {
+      throw new Error('Restaurant slug is required. Please configure VITE_DEFAULT_RESTAURANT_SLUG or use a restaurant slug in the URL.')
+    }
     const { data, error } = await supabase
       .from('restaurants')
       .select('id')
@@ -89,8 +92,11 @@ export async function getRestaurant(): Promise<Restaurant> {
   const restaurantSlug = getRestaurantSlug()
   
   if (!restaurantSlug) {
-    // Fallback to default for development
-    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN || 'default'
+    // Try to use default restaurant slug from environment if configured
+    const defaultSlug = import.meta.env.VITE_DEFAULT_RESTAURANT_SLUG || import.meta.env.VITE_DEFAULT_SUBDOMAIN
+    if (!defaultSlug) {
+      throw new Error('Restaurant slug is required. Please configure VITE_DEFAULT_RESTAURANT_SLUG or use a restaurant slug in the URL.')
+    }
     const { data, error } = await supabase
       .from('restaurants')
       .select('*')

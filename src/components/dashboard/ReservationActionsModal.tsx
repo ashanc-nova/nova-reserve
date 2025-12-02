@@ -13,6 +13,7 @@ import { sendCustomSMS, getNovaTableStatus, bookNovaTable } from '../../lib/nova
 import type { NovaArea, NovaTable } from '../../lib/nova-api'
 import { useToast } from '../../hooks/use-toast'
 import { useGlobalState } from '../../lib/global-state'
+import { useRestaurant } from '../../lib/restaurant-context'
 import { format } from 'date-fns'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs'
 import {
@@ -38,27 +39,27 @@ const MESSAGE_TEMPLATES = [
   {
     id: 'reminder',
     label: 'Reminder',
-    text: 'Hi {name}, reminder: your reservation is {date} at {time}. See you soon!'
+    text: 'Hi {name}, reminder from {restaurant_name}: your reservation is {date} at {time}. See you soon!'
   },
   {
     id: 'reschedule',
     label: 'Reschedule',
-    text: 'Hi {name}, we need to reschedule your reservation for {date} at {time}. Please let us know if another time works.'
+    text: 'Hi {name}, {restaurant_name} needs to reschedule your reservation for {date} at {time}. Please let us know if another time works.'
   },
   {
     id: 'delay',
     label: 'Running Late',
-    text: 'Hi {name}, we\'re running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
+    text: 'Hi {name}, {restaurant_name} is running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
   },
   {
     id: 'cancellation',
     label: 'Cancellation Notice',
-    text: 'Hi {name}, we need to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
+    text: 'Hi {name}, {restaurant_name} needs to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
   },
   {
     id: 'confirmation',
     label: 'Confirmation',
-    text: 'Hi {name}, your reservation for {date} at {time} is confirmed. See you soon!'
+    text: 'Hi {name}, {restaurant_name}: confirmed {date} at {time} for {party_size} guests. See you soon!'
   },
   {
     id: 'custom',
@@ -88,6 +89,7 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
   const [loadingTableName, setLoadingTableName] = useState(false)
   const { toast } = useToast()
   const { refreshReservations } = useGlobalState()
+  const { restaurant } = useRestaurant()
 
   // Update local reservation state when prop changes
   useEffect(() => {
@@ -184,8 +186,10 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
   }
 
   const formatMessage = (template: string): string => {
+    const restaurantName = restaurant?.name || 'Restaurant'
     const formatted = template
       .replace(/{name}/g, currentReservation.name)
+      .replace(/{restaurant_name}/g, restaurantName)
       .replace(/{date}/g, formatDateWithTimezone(currentReservation.date_time))
       .replace(/{time}/g, formatTimeInTimezone(currentReservation.date_time))
       .replace(/{party_size}/g, currentReservation.party_size.toString())
@@ -194,8 +198,10 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
   }
 
   const formatConfirmationMessage = (template: string): string => {
+    const restaurantName = restaurant?.name || 'Restaurant'
     let formatted = template
       .replace(/{name}/g, currentReservation.name)
+      .replace(/{restaurant_name}/g, restaurantName)
       .replace(/{date}/g, formatDateWithTimezone(currentReservation.date_time))
       .replace(/{time}/g, formatTimeInTimezone(currentReservation.date_time))
       .replace(/{party_size}/g, currentReservation.party_size.toString())
@@ -319,9 +325,20 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
   const handleConfirm = async () => {
     setIsConfirmLoading(true)
     try {
-      // Update reservation status first
-      await updateReservationStatus(currentReservation.id, 'confirmed')
-      setCurrentReservation({ ...currentReservation, status: 'confirmed' })
+      // When confirming a draft from manager dashboard (not through payment flow),
+      // clear payment_amount since no payment was made
+      const { supabase } = await import('../../lib/supabase')
+      if (!supabase) throw new Error('Supabase client not initialized')
+      
+      await supabase
+        .from('reservations')
+        .update({ 
+          status: 'confirmed',
+          payment_amount: null  // Clear payment amount when confirming without payment
+        })
+        .eq('id', currentReservation.id)
+      
+      setCurrentReservation({ ...currentReservation, status: 'confirmed', payment_amount: null })
       
       // Send confirmation SMS
       try {
@@ -505,6 +522,23 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                       )
                       const availableTables = allTables.filter(table => !table.isTableOccupied)
                       const occupiedTables = allTables.filter(table => table.isTableOccupied)
+                      const totalTables = availableTables.length + occupiedTables.length
+                      
+                      // Calculate number of columns needed
+                      // First 15 tables fill 3 rows with 5 columns each
+                      // After 15 tables, add additional columns (6th column for table 16, etc.)
+                      const baseColumns = 5
+                      const maxRowsForBaseColumns = 3
+                      const maxTablesForBaseColumns = baseColumns * maxRowsForBaseColumns // 15
+                      
+                      // If we have more than 15 tables, calculate how many additional columns we need
+                      let totalColumns = baseColumns
+                      if (totalTables > maxTablesForBaseColumns) {
+                        const additionalTables = totalTables - maxTablesForBaseColumns
+                        // Each additional column can hold 3 tables (one per row)
+                        const additionalColumns = Math.ceil(additionalTables / maxRowsForBaseColumns)
+                        totalColumns = baseColumns + additionalColumns
+                      }
                       
                       return (
                         <TabsContent key={area.areaName} value={area.areaName} className="flex-1 overflow-hidden flex flex-col min-h-0 m-0 data-[state=active]:flex data-[state=inactive]:hidden">
@@ -517,8 +551,8 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                               </p>
                             </div>
                           ) : (
-                            <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide -mr-2 pr-2">
-                              <div className="inline-grid grid-rows-3 grid-flow-col gap-3 auto-cols-max pb-2">
+                            <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide -mr-2 pr-2">
+                              <div className="grid gap-3 pb-2 auto-rows-max" style={{ gridTemplateColumns: `repeat(${totalColumns}, minmax(6rem, 1fr))` }}>
                                 {/* Show available tables first */}
                                 {availableTables.map((table) => (
                                   <Button

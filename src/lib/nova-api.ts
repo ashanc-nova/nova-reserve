@@ -1,6 +1,9 @@
 import { getRestaurant } from './supabase-data'
 
-const NOVA_API_BASE_URL = import.meta.env.VITE_NOVA_API_BASE_URL || 'https://dev03.as1.dev.bakeit360.com'
+const NOVA_API_BASE_URL = import.meta.env.VITE_NOVA_API_BASE_URL
+if (!NOVA_API_BASE_URL) {
+  throw new Error('VITE_NOVA_API_BASE_URL is not configured. Please set it in your environment variables.')
+}
 
 interface NovaCustomerResponse {
   mobileNumber: string

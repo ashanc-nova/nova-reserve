@@ -9,6 +9,7 @@ import type { Reservation, MessageHistory } from '../../lib/supabase'
 import { formatDateWithTimezone, formatTimeInTimezone } from '../../lib/timezone-utils'
 import { cn } from '../../lib/utils'
 import { getMessageHistory } from '../../lib/supabase-data'
+import { useRestaurant } from '../../lib/restaurant-context'
 import { format } from 'date-fns'
 
 interface SendMessageModalProps {
@@ -22,27 +23,27 @@ const MESSAGE_TEMPLATES = [
   {
     id: 'reschedule',
     label: 'Reschedule Request',
-    text: 'Hi {name}, we need to reschedule your reservation for {date} at {time}. Please let us know if another time works.'
+    text: 'Hi {name}, {restaurant_name} needs to reschedule your reservation for {date} at {time}. Please let us know if another time works.'
   },
   {
     id: 'reminder',
     label: 'Reminder',
-    text: 'Hi {name}, reminder: your reservation is {date} at {time}. See you soon!'
+    text: 'Hi {name}, reminder from {restaurant_name}: your reservation is {date} at {time}. See you soon!'
   },
   {
     id: 'delay',
     label: 'Running Late',
-    text: 'Hi {name}, we\'re running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
+    text: 'Hi {name}, {restaurant_name} is running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
   },
   {
     id: 'cancellation',
     label: 'Cancellation Notice',
-    text: 'Hi {name}, we need to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
+    text: 'Hi {name}, {restaurant_name} needs to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
   },
   {
     id: 'confirmation',
     label: 'Confirmation',
-    text: 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+    text: 'Hi {name}, {restaurant_name}: confirmed {date} at {time} for {party_size} guests. See you soon!'
   },
   {
     id: 'custom',
@@ -58,10 +59,13 @@ export function SendMessageModal({ reservation, open, onOpenChange, onSend }: Se
   const [showHistory, setShowHistory] = useState(false)
   const [messageHistory, setMessageHistory] = useState<MessageHistory[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const { restaurant } = useRestaurant()
 
   const formatMessage = (template: string): string => {
+    const restaurantName = restaurant?.name || 'Restaurant'
     const formatted = template
       .replace(/{name}/g, reservation.name)
+      .replace(/{restaurant_name}/g, restaurantName)
       .replace(/{date}/g, formatDateWithTimezone(reservation.date_time))
       .replace(/{time}/g, formatTimeInTimezone(reservation.date_time))
       .replace(/{party_size}/g, reservation.party_size.toString())

@@ -6,7 +6,7 @@ import { Switch } from '../ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Separator } from '../ui/separator'
-import { Plus, Trash2, Save, ArrowLeft, Check, Edit, Clock, Calendar, Settings, Star, MessageSquare, Zap, User, Shield, BarChart, TrendingUp, Users, Globe, CreditCard, XCircle } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowLeft, Check, Edit, Clock, Calendar, Settings, Star, MessageSquare, Zap, User, Shield, BarChart, TrendingUp, Users, Globe, CreditCard, XCircle, Loader2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectSeparator, SelectGroup } from '../ui/select'
 import { useToast } from '../../hooks/use-toast'
 import { getRestaurant, updateRestaurantSettings } from '../../lib/supabase-data'
@@ -31,7 +31,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
   const [managerTab, setManagerTab] = useState('timezone') // Changed from 'kpi-visibility' to 'timezone'
   const { toast } = useToast()
   
-  const [leadTimeHours, setLeadTimeHours] = useState(2)
+  const [leadTimeHours, setLeadTimeHours] = useState<number | ''>(2)
   const [cutoffTime, setCutoffTime] = useState('21:00')
   const [autoConfirm, setAutoConfirm] = useState(true)
   const [allowSpecialNotes, setAllowSpecialNotes] = useState(false)
@@ -62,6 +62,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
   const [timezone, setTimezone] = useState('America/Los_Angeles')
   
   const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedDay, setSelectedDay] = useState(new Date().getDay())
   const [editingSlot, setEditingSlot] = useState<Partial<TimeSlot> | null>(null)
 
@@ -125,11 +126,14 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
   }
 
   const loadSlots = async () => {
+    setLoadingSlots(true)
     try {
       const data = await getTimeSlots(selectedDay, undefined)
       setSlots(data)
     } catch (error) {
       console.error('Error loading slots:', error)
+    } finally {
+      setLoadingSlots(false)
     }
   }
 
@@ -138,7 +142,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
       // Prepare settings to save - backend will merge with existing settings
       const settingsToSave = {
         reservation_settings: {
-          lead_time_hours: leadTimeHours,
+          lead_time_hours: leadTimeHours === '' ? 2 : leadTimeHours,
           cutoff_time: cutoffTime,
           auto_confirm: autoConfirm,
           allow_special_notes: allowSpecialNotes,
@@ -196,6 +200,40 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
 
   const handleSaveSlot = async () => {
     if (!editingSlot) return
+    
+    const startTime = editingSlot.start_time || '18:00'
+    const endTime = editingSlot.end_time || '18:30'
+    
+    // Check for duplicate time slots (same start and end time) when creating a new slot
+    if (!editingSlot.id) {
+      const duplicateSlot = slots.find(
+        slot => slot.start_time === startTime && slot.end_time === endTime
+      )
+      
+      if (duplicateSlot) {
+        toast({ 
+          title: 'Duplicate Time Slot', 
+          description: `A time slot with start time ${startTime} and end time ${endTime} already exists for ${DAYS_OF_WEEK[selectedDay]}. Please choose different times.`, 
+          variant: 'destructive' 
+        })
+        return
+      }
+    } else {
+      // When editing, check for duplicates excluding the current slot being edited
+      const duplicateSlot = slots.find(
+        slot => slot.id !== editingSlot.id && slot.start_time === startTime && slot.end_time === endTime
+      )
+      
+      if (duplicateSlot) {
+        toast({ 
+          title: 'Duplicate Time Slot', 
+          description: `A time slot with start time ${startTime} and end time ${endTime} already exists for ${DAYS_OF_WEEK[selectedDay]}. Please choose different times.`, 
+          variant: 'destructive' 
+        })
+        return
+      }
+    }
+    
     try {
       if (editingSlot.id) {
         await updateTimeSlot(editingSlot.id, editingSlot)
@@ -203,8 +241,8 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
       } else {
         await createTimeSlot({
           day_of_week: selectedDay,
-          start_time: editingSlot.start_time || '18:00',
-          end_time: editingSlot.end_time || '18:30',
+          start_time: startTime,
+          end_time: endTime,
           max_reservations: editingSlot.max_reservations || 4,
           is_default: true,
           is_active: true,
@@ -342,7 +380,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                           id="lead-time"
                           type="number"
                           value={leadTimeHours}
-                          onChange={(e) => setLeadTimeHours(parseInt(e.target.value) || 2)}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setLeadTimeHours(val === '' ? '' : (parseInt(val) || 0))
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              setLeadTimeHours(2)
+                            }
+                          }}
                           className="bg-card/50 border-border focus:border-primary/50"
                           placeholder="2"
                         />
@@ -498,7 +544,10 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                             key={day} 
                             variant={selectedDay === i ? 'default' : 'outline'} 
                             size="sm" 
-                            onClick={() => setSelectedDay(i)}
+                            onClick={() => {
+                              setSelectedDay(i)
+                              setSlots([]) // Clear previous slots immediately
+                            }}
                             className={selectedDay === i 
                               ? 'bg-primary text-white' 
                               : 'bg-card/50 border-border text-muted-foreground hover:bg-card hover:text-foreground'
@@ -528,7 +577,12 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
 
                     {/* Slots List */}
                     <div className="space-y-3">
-                      {slots.length === 0 ? (
+                      {loadingSlots ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-primary" />
+                          <p>Loading time slots...</p>
+                        </div>
+                      ) : slots.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                           <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No time slots configured for {DAYS_OF_WEEK[selectedDay]}</p>
@@ -1289,7 +1343,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
       {/* Edit Slot Dialog */}
       {editingSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
                 {editingSlot.id ? 'Edit' : 'Add'} Time Slot

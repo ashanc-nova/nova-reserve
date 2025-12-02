@@ -84,10 +84,12 @@ export default function ReservationConfirmationPage() {
             
             // Send confirmation SMS
             if (updatedRes && !smsSent) {
-              const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+              const restaurantName = restaurant?.name || 'Restaurant'
+              const confirmationTemplate = 'Hi {name}, {restaurant_name}: confirmed {date} at {time} for {party_size} guests. See you soon!'
               try {
                 let confirmationMessage = confirmationTemplate
                   .replace(/{name}/g, updatedRes.name)
+                  .replace(/{restaurant_name}/g, restaurantName)
                   .replace(/{date}/g, formatDateWithTimezone(updatedRes.date_time))
                   .replace(/{time}/g, formatTimeInTimezone(updatedRes.date_time))
                   .replace(/{party_size}/g, updatedRes.party_size.toString())
@@ -138,10 +140,12 @@ export default function ReservationConfirmationPage() {
           
           // Send confirmation SMS for already confirmed reservations (non-payment flow)
           if (res.status === 'confirmed' && !smsSent) {
-            const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+            const restaurantName = restaurant?.name || 'Restaurant'
+            const confirmationTemplate = 'Hi {name}, {restaurant_name}: confirmed {date} at {time} for {party_size} guests. See you soon!'
             try {
               let confirmationMessage = confirmationTemplate
                 .replace(/{name}/g, res.name)
+                .replace(/{restaurant_name}/g, restaurantName)
                 .replace(/{date}/g, formatDateWithTimezone(res.date_time))
                 .replace(/{time}/g, formatTimeInTimezone(res.date_time))
                 .replace(/{party_size}/g, res.party_size.toString())
@@ -236,7 +240,7 @@ export default function ReservationConfirmationPage() {
           {/* Heading */}
           <div className="space-y-2">
             <h1 className="text-3xl sm:text-4xl font-bold gradient-text">Reservation Confirmed!</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">A confirmation email has been sent to you.</p>
+            <p className="text-sm sm:text-base text-muted-foreground">A confirmation sms has been sent to you.</p>
           </div>
 
           {/* Reservation Details Cards */}

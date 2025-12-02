@@ -327,10 +327,12 @@ export default function GuestReservationPage() {
 
       // Send confirmation SMS if reservation is confirmed
       if (reservation.status === 'confirmed') {
-        const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+        const restaurantName = contextRestaurant?.name || 'Restaurant'
+        const confirmationTemplate = 'Hi {name}, {restaurant_name}: confirmed {date} at {time} for {party_size} guests. See you soon!'
         try {
           let confirmationMessage = confirmationTemplate
             .replace(/{name}/g, reservation.name)
+            .replace(/{restaurant_name}/g, restaurantName)
             .replace(/{date}/g, formatDateWithTimezone(reservation.date_time))
             .replace(/{time}/g, formatTimeInTimezone(reservation.date_time))
             .replace(/{party_size}/g, reservation.party_size.toString())

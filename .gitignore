@@ -33,5 +33,9 @@ dist-ssr
 
 # Implementation docs and migrations
 IMPLEMENTATION_SUMMARY.md
+ENV_SETUP.md
+PATH_BASED_ROUTING.md
+NETLIFY_DEPLOYMENT.md
+SUBDOMAIN_BASED_ROUTING.md
 src/lib/subdomain-utils.ts
 migrations/
