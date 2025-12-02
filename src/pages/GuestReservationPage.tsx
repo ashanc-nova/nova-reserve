@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -28,6 +28,7 @@ import { Toaster } from '../components/ui/toaster'
 export default function GuestReservationPage() {
   const { toast } = useToast()
   const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { restaurant: contextRestaurant } = useRestaurant()
   const reservationId = searchParams.get('reservationId')
@@ -477,7 +478,7 @@ export default function GuestReservationPage() {
   return (
       <>
         <Toaster />
-        <div className="min-h-screen w-full bg-background text-foreground flex items-start justify-center py-6 sm:py-12 px-4">
+        <div className="min-h-screen w-full bg-background text-foreground flex flex-col items-center py-6 sm:py-12 px-4">
           <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8 w-full max-w-3xl">
           <div className='space-y-6 sm:space-y-8 animate-in fade-in-0'>
             <div className="text-center mb-6 sm:mb-8">
@@ -693,6 +694,18 @@ export default function GuestReservationPage() {
             </div>
           </div>
         </form>
+        
+        {/* Cancel Reservation Button - Below the form */}
+        <div className="mt-6 flex justify-center w-full max-w-3xl">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(`${restaurantPrefix}/reserve/cancel`)}
+            className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+          >
+            Cancel a reservation?
+          </Button>
+        </div>
       </div>
     </>
   )

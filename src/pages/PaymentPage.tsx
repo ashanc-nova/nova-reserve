@@ -327,75 +327,46 @@ export default function PaymentPage() {
               <CardDescription className="text-xs sm:text-sm">You will be redirected to a secure payment page to complete your payment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
-              <div className="space-y-4">
-                {paymentSettings?.payment_type === 'fixed' ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentAmount" className="text-sm sm:text-base font-semibold">Payment Amount</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                      <Input
-                        id="paymentAmount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base bg-background/50 border-border"
-                        readOnly
-                      />
-                    </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Amount calculated based on party size, time, and date
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentAmount" className="text-sm sm:text-base font-semibold">Payment Amount</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                      <Input
-                        id="paymentAmount"
-                        type="number"
-                        step="0.01"
-                        min={paymentSettings?.min_payment_amount || 0}
-                        max={paymentSettings?.max_payment_amount > 0 ? paymentSettings.max_payment_amount : undefined}
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base bg-background/50 border-border"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
-                      <span>
-                        {paymentSettings?.min_payment_amount > 0 && (
-                          <>Min: ${paymentSettings.min_payment_amount.toFixed(2)}</>
-                        )}
-                      </span>
-                      <span>
-                        {paymentSettings?.max_payment_amount > 0 && (
-                          <>Max: ${paymentSettings.max_payment_amount.toFixed(2)}</>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                )}
+              <div className="p-4 sm:p-6 bg-card/50 rounded-lg border border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm sm:text-base font-semibold">Reservation Fee</span>
+                  <span className="text-xl sm:text-2xl font-bold text-primary">${paymentAmount || '0.00'}</span>
+                </div>
               </div>
               
-              <div className="p-4 sm:p-6 bg-card/50 rounded-lg border border-border space-y-3 sm:space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm sm:text-base text-muted-foreground">Reservation Fee</span>
-                  <span className="text-xl sm:text-2xl font-bold">${paymentAmount || '0.00'}</span>
-                </div>
-                <div className="pt-3 sm:pt-4 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base font-semibold">Total</span>
-                    <span className="text-xl sm:text-2xl font-bold text-primary">${paymentAmount || '0.00'}</span>
+              {paymentSettings?.payment_type === 'custom' && (
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmount" className="text-sm sm:text-base font-semibold">Payment Amount</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                    <Input
+                      id="paymentAmount"
+                      type="number"
+                      step="0.01"
+                      min={paymentSettings?.min_payment_amount || 0}
+                      max={paymentSettings?.max_payment_amount > 0 ? paymentSettings.max_payment_amount : undefined}
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-10 sm:pl-12 h-12 sm:h-14 text-sm sm:text-base bg-background/50 border-border"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
+                    <span>
+                      {paymentSettings?.min_payment_amount > 0 && (
+                        <>Min: ${paymentSettings.min_payment_amount.toFixed(2)}</>
+                      )}
+                    </span>
+                    <span>
+                      {paymentSettings?.max_payment_amount > 0 && (
+                        <>Max: ${paymentSettings.max_payment_amount.toFixed(2)}</>
+                      )}
+                    </span>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -405,24 +376,26 @@ export default function PaymentPage() {
                   className="h-12 sm:h-14 text-sm sm:text-base font-semibold flex-shrink-0"
                   size="lg"
                 >
-                  <Edit className="mr-2 h-5 w-5" />
-                  Edit
+                  <Edit className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
                 <Button
                   onClick={handleConfirm}
                   disabled={confirming}
-                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-semibold"
+                  className="flex-1 min-w-0 h-12 sm:h-14 text-sm sm:text-base font-semibold"
                   size="lg"
                 >
                   {confirming ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Confirming...
+                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin flex-shrink-0" />
+                      <span className="hidden sm:inline">Confirming...</span>
+                      <span className="sm:hidden">Confirming</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="mr-2 h-5 w-5" />
-                      Confirm Payment
+                      <CheckCircle2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      <span className="hidden sm:inline">Confirm Payment</span>
+                      <span className="sm:hidden">Confirm</span>
                     </>
                   )}
                 </Button>

@@ -287,6 +287,34 @@ export async function getReservation(id: string): Promise<Reservation | null> {
   }
 }
 
+export async function getReservationsByPhone(phone: string): Promise<Reservation[]> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  const restaurantId = await getRestaurantId()
+  // Normalize phone number for comparison (remove all non-digit characters)
+  const normalizedPhone = phone.replace(/\D/g, '')
+  
+  // Get all reservations for this restaurant
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .in('status', ['draft', 'confirmed'])
+    .order('date_time', { ascending: false })
+  
+  if (error) throw new Error(`Failed to get reservations: ${error.message}`)
+  
+  // Filter by normalized phone number (match if phone numbers match after removing non-digits)
+  const matchingReservations = (data || []).filter(r => {
+    const reservationPhone = r.phone?.replace(/\D/g, '') || ''
+    return reservationPhone === normalizedPhone
+  })
+  
+  return matchingReservations.map(r => ({
+    ...r,
+    payment_amount: r.payment_amount ? parseFloat(r.payment_amount.toString()) : undefined
+  }))
+}
+
 export async function updateReservationStatus(id: string, status: Reservation['status']): Promise<void> {
   if (!supabase) throw new Error('Supabase client not initialized')
   const { error } = await supabase.from('reservations').update({ status }).eq('id', id)

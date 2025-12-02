@@ -138,14 +138,19 @@ export default function ReservationsPage() {
     r => r.status !== 'seated' && r.status !== 'cancelled'
   )
   
-  // Get seated and cancelled reservations for history (Past tab - only past 30 days)
+  // Get seated and cancelled reservations for history (Past tab)
   const thirtyDaysAgo = subDays(new Date(), 30)
   const historyReservations = allReservations.filter(
     r => {
       const isSeatedOrCancelled = r.status === 'seated' || r.status === 'cancelled'
       if (!isSeatedOrCancelled) return false
       
-      // Filter to only include reservations from the past 30 days
+      // For cancelled reservations, show them immediately regardless of date
+      if (r.status === 'cancelled') {
+        return true
+      }
+      
+      // For seated reservations, filter to only include reservations from the past 30 days
       const reservationDate = new Date(r.date_time)
       return reservationDate >= thirtyDaysAgo
     }
