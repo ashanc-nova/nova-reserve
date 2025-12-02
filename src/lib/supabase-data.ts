@@ -299,6 +299,29 @@ export async function updateReservationPaymentAmount(id: string, payment_amount:
   if (error) throw new Error(`Failed to update reservation payment amount: ${error.message}`)
 }
 
+export async function updateReservation(id: string, data: {
+  name?: string
+  phone?: string
+  email?: string
+  party_size?: number
+  date_time?: string
+  special_requests?: string
+  special_occasion_type?: string
+  slot_start_time?: string
+  slot_end_time?: string
+  novacustomer_id?: string
+}): Promise<Reservation> {
+  if (!supabase) throw new Error('Supabase client not initialized')
+  const { data: reservation, error } = await supabase
+    .from('reservations')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw new Error(`Failed to update reservation: ${error.message}`)
+  return reservation
+}
+
 export async function seatReservation(id: string, tableId: string): Promise<void> {
   if (!supabase) throw new Error('Supabase client not initialized')
   

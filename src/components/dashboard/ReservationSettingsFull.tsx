@@ -40,19 +40,19 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
   
   // Payment settings
   const [paymentType, setPaymentType] = useState<'fixed' | 'custom'>('fixed')
-  const [basePaymentAmount, setBasePaymentAmount] = useState<number>(0)
-  const [minPaymentAmount, setMinPaymentAmount] = useState<number>(0)
-  const [maxPaymentAmount, setMaxPaymentAmount] = useState<number>(0)
-  const [partySizePricing, setPartySizePricing] = useState<Array<{ minParty: number; maxParty: number; amount: number }>>([])
-  const [peakHoursPremium, setPeakHoursPremium] = useState<number>(0)
-  const [weekendPremium, setWeekendPremium] = useState<number>(0)
+  const [basePaymentAmount, setBasePaymentAmount] = useState<number | ''>(0)
+  const [minPaymentAmount, setMinPaymentAmount] = useState<number | ''>(0)
+  const [maxPaymentAmount, setMaxPaymentAmount] = useState<number | ''>(0)
+  const [partySizePricing, setPartySizePricing] = useState<Array<{ minParty: number | ''; maxParty: number | ''; amount: number | '' }>>([])
+  const [peakHoursPremium, setPeakHoursPremium] = useState<number | ''>(0)
+  const [weekendPremium, setWeekendPremium] = useState<number | ''>(0)
   const [peakHoursStart, setPeakHoursStart] = useState<string>('19:00')
   const [peakHoursEnd, setPeakHoursEnd] = useState<string>('21:00')
   const [refundPolicy, setRefundPolicy] = useState<'refundable' | 'non-refundable' | 'conditional'>('refundable')
-  const [refundHoursBefore, setRefundHoursBefore] = useState<number>(24)
+  const [refundHoursBefore, setRefundHoursBefore] = useState<number | ''>(24)
   const [chargeNoShow, setChargeNoShow] = useState(false)
   const [noShowChargeType, setNoShowChargeType] = useState<'amount' | 'percentage'>('amount')
-  const [noShowChargeValue, setNoShowChargeValue] = useState<number>(0)
+  const [noShowChargeValue, setNoShowChargeValue] = useState<number | ''>(0)
   
   // Manager settings - KPI visibility (default to false)
   const [showAvgPartySize, setShowAvgPartySize] = useState(false)
@@ -92,7 +92,8 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
       
       // Payment settings
       const paymentSettings = settings.payment_settings || {}
-      setPaymentType(paymentSettings.payment_type || 'fixed')
+      // Always use 'fixed' payment type (selector is hidden)
+      setPaymentType('fixed')
       setBasePaymentAmount(paymentSettings.base_payment_amount || 0)
       setMinPaymentAmount(paymentSettings.min_payment_amount || 0)
       setMaxPaymentAmount(paymentSettings.max_payment_amount || 0)
@@ -145,19 +146,23 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
           require_payment: requirePayment,
           payment_settings: {
             payment_type: paymentType,
-            base_payment_amount: basePaymentAmount,
-            min_payment_amount: minPaymentAmount,
-            max_payment_amount: maxPaymentAmount,
-            party_size_pricing: partySizePricing,
-            peak_hours_premium: peakHoursPremium,
-            weekend_premium: weekendPremium,
+            base_payment_amount: basePaymentAmount === '' ? 0 : basePaymentAmount,
+            min_payment_amount: minPaymentAmount === '' ? 0 : minPaymentAmount,
+            max_payment_amount: maxPaymentAmount === '' ? 0 : maxPaymentAmount,
+            party_size_pricing: partySizePricing.map(p => ({
+              minParty: p.minParty === '' ? 1 : p.minParty,
+              maxParty: p.maxParty === '' ? 1 : p.maxParty,
+              amount: p.amount === '' ? 0 : p.amount
+            })),
+            peak_hours_premium: peakHoursPremium === '' ? 0 : peakHoursPremium,
+            weekend_premium: weekendPremium === '' ? 0 : weekendPremium,
             peak_hours_start: peakHoursStart,
             peak_hours_end: peakHoursEnd,
             refund_policy: refundPolicy,
-            refund_hours_before: refundHoursBefore,
+            refund_hours_before: refundHoursBefore === '' ? 24 : refundHoursBefore,
             charge_no_show: chargeNoShow,
             no_show_charge_type: noShowChargeType,
-            no_show_charge_value: noShowChargeValue
+            no_show_charge_value: noShowChargeValue === '' ? 0 : noShowChargeValue
           }
         },
         manager_settings: {
@@ -601,7 +606,8 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                         <>
                           <Separator className="bg-border" />
                           
-                          <div className="space-y-3">
+                          {/* Payment Type Selector - Commented out, always using 'fixed' */}
+                          {/* <div className="space-y-3">
                             <Label className="text-sm font-medium">Payment Type</Label>
                             <div className="grid grid-cols-2 gap-3">
                               <Button
@@ -627,8 +633,9 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                                 Custom Amount
                               </Button>
                             </div>
-                          </div>
+                          </div> */}
 
+                          {/* Always use 'fixed' payment type */}
                           {paymentType === 'fixed' && (
                             <div className="space-y-3">
                               <Label htmlFor="base-amount" className="text-sm font-medium">Base Payment Amount ($)</Label>
@@ -638,7 +645,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                                 step="0.01"
                                 min="0"
                                 value={basePaymentAmount}
-                                onChange={(e) => setBasePaymentAmount(parseFloat(e.target.value) || 0)}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setBasePaymentAmount(val === '' ? '' : (parseFloat(val) || 0))
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    setBasePaymentAmount(0)
+                                  }
+                                }}
                                 className="bg-card/50 border-border focus:border-primary/50"
                                 placeholder="0.00"
                               />
@@ -656,7 +671,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                                   step="0.01"
                                   min="0"
                                   value={minPaymentAmount}
-                                  onChange={(e) => setMinPaymentAmount(parseFloat(e.target.value) || 0)}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setMinPaymentAmount(val === '' ? '' : (parseFloat(val) || 0))
+                                  }}
+                                  onBlur={(e) => {
+                                    if (e.target.value === '') {
+                                      setMinPaymentAmount(0)
+                                    }
+                                  }}
                                   className="bg-card/50 border-border focus:border-primary/50"
                                   placeholder="0.00"
                                 />
@@ -670,7 +693,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                                   step="0.01"
                                   min="0"
                                   value={maxPaymentAmount}
-                                  onChange={(e) => setMaxPaymentAmount(parseFloat(e.target.value) || 0)}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setMaxPaymentAmount(val === '' ? '' : (parseFloat(val) || 0))
+                                  }}
+                                  onBlur={(e) => {
+                                    if (e.target.value === '') {
+                                      setMaxPaymentAmount(0)
+                                    }
+                                  }}
                                   className="bg-card/50 border-border focus:border-primary/50"
                                   placeholder="0.00"
                                 />
@@ -702,63 +733,118 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {partySizePricing.length === 0 ? (
-                          <div className="text-center py-4 text-muted-foreground">
-                            <p className="text-sm">No party size pricing configured</p>
-                            <p className="text-xs mt-1">Base amount will be used for all party sizes</p>
+                          <div className="text-center py-6 px-4 bg-muted/30 rounded-lg border border-dashed border-border">
+                            <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                            <p className="text-sm font-medium text-foreground">No party size pricing configured</p>
+                            <p className="text-xs mt-1 text-muted-foreground">Base payment amount will be used for all party sizes</p>
                           </div>
                         ) : (
-                          <div className="space-y-3">
+                          <div className="space-y-4">
+                            <div className="text-xs text-muted-foreground mb-2 px-1">
+                              Configure pricing rules for different party sizes. Guests will pay the amount specified for their party size range.
+                            </div>
                             {partySizePricing.map((pricing, index) => (
-                              <div key={index} className="flex items-center gap-3 p-3 bg-card/50 rounded-lg border border-border">
-                                <div className="flex-1 grid grid-cols-3 gap-2">
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={pricing.minParty}
-                                    onChange={(e) => {
-                                      const newPricing = [...partySizePricing]
-                                      newPricing[index].minParty = parseInt(e.target.value) || 1
-                                      setPartySizePricing(newPricing)
-                                    }}
-                                    className="bg-background/50 border-border text-sm"
-                                    placeholder="Min"
-                                  />
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={pricing.maxParty}
-                                    onChange={(e) => {
-                                      const newPricing = [...partySizePricing]
-                                      newPricing[index].maxParty = parseInt(e.target.value) || 1
-                                      setPartySizePricing(newPricing)
-                                    }}
-                                    className="bg-background/50 border-border text-sm"
-                                    placeholder="Max"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">$</span>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={pricing.amount}
-                                      onChange={(e) => {
-                                        const newPricing = [...partySizePricing]
-                                        newPricing[index].amount = parseFloat(e.target.value) || 0
-                                        setPartySizePricing(newPricing)
-                                      }}
-                                      className="bg-background/50 border-border text-sm"
-                                      placeholder="Amount"
-                                    />
+                              <div key={index} className="p-4 bg-card/50 rounded-lg border border-border">
+                                <div className="flex items-end gap-3">
+                                  <div className="flex-1 grid grid-cols-3 gap-3">
+                                    <div className="space-y-1.5">
+                                      <Label htmlFor={`min-party-${index}`} className="text-xs font-medium text-foreground">
+                                        Party Size (From)
+                                      </Label>
+                                      <Input
+                                        id={`min-party-${index}`}
+                                        type="number"
+                                        min="1"
+                                        value={pricing.minParty}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                          const newPricing = [...partySizePricing]
+                                          newPricing[index].minParty = val === '' ? '' : (parseInt(val) || 1)
+                                          setPartySizePricing(newPricing)
+                                        }}
+                                        onBlur={(e) => {
+                                          if (e.target.value === '') {
+                                            const newPricing = [...partySizePricing]
+                                            newPricing[index].minParty = 1
+                                            setPartySizePricing(newPricing)
+                                          }
+                                        }}
+                                        className="bg-background/50 border-border text-sm"
+                                        placeholder="1"
+                                      />
+                                      <p className="text-xs text-muted-foreground">Min party size</p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label htmlFor={`max-party-${index}`} className="text-xs font-medium text-foreground">
+                                        Party Size (To)
+                                      </Label>
+                                      <Input
+                                        id={`max-party-${index}`}
+                                        type="number"
+                                        min="1"
+                                        value={pricing.maxParty}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                          const newPricing = [...partySizePricing]
+                                          newPricing[index].maxParty = val === '' ? '' : (parseInt(val) || 1)
+                                          setPartySizePricing(newPricing)
+                                        }}
+                                        onBlur={(e) => {
+                                          if (e.target.value === '') {
+                                            const newPricing = [...partySizePricing]
+                                            newPricing[index].maxParty = 1
+                                            setPartySizePricing(newPricing)
+                                          }
+                                        }}
+                                        className="bg-background/50 border-border text-sm"
+                                        placeholder="2"
+                                      />
+                                      <p className="text-xs text-muted-foreground">Max party size</p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label htmlFor={`amount-${index}`} className="text-xs font-medium text-foreground">
+                                        Payment Amount ($)
+                                      </Label>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-muted-foreground">$</span>
+                                        <Input
+                                          id={`amount-${index}`}
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={pricing.amount}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                            const newPricing = [...partySizePricing]
+                                            newPricing[index].amount = val === '' ? '' : (parseFloat(val) || 0)
+                                            setPartySizePricing(newPricing)
+                                          }}
+                                          onBlur={(e) => {
+                                            if (e.target.value === '') {
+                                              const newPricing = [...partySizePricing]
+                                              newPricing[index].amount = 0
+                                              setPartySizePricing(newPricing)
+                                            }
+                                          }}
+                                          className="bg-background/50 border-border text-sm flex-1"
+                                          placeholder="0.00"
+                                        />
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        For {pricing.minParty}-{pricing.maxParty} guests
+                                      </p>
+                                    </div>
                                   </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setPartySizePricing(partySizePricing.filter((_, i) => i !== index))}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0 mb-1.5"
+                                    title="Remove this pricing rule"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => setPartySizePricing(partySizePricing.filter((_, i) => i !== index))}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
                               </div>
                             ))}
                           </div>
@@ -767,9 +853,9 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                           type="button"
                           variant="outline"
                           onClick={() => setPartySizePricing([...partySizePricing, { minParty: 1, maxParty: 2, amount: 0 }])}
-                          className="w-full bg-card/50 border-border hover:bg-card"
+                          className="w-full border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5"
                         >
-                          <Plus className="mr-2 h-4 w-4" />
+                          <Plus className="h-4 w-4 mr-2" />
                           Add Party Size Pricing
                         </Button>
                       </CardContent>
@@ -777,77 +863,115 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                   </div>
                 )}
 
-                {/* Time-Based Pricing */}
+                {/* Dynamic Pricing */}
                 {requirePayment && paymentType === 'fixed' && (
-                  <div className="relative">
-                    <div className="absolute -inset-0.5 animate-pulse rounded-2xl bg-gradient-to-r from-primary/50 to-primary/20 opacity-50 blur-xl"></div>
-                    <Card className="relative rounded-2xl border border-border bg-card shadow-2xl backdrop-blur-xl">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/20 rounded-lg">
-                            <Clock className="h-5 w-5 text-primary" />
+                  <>
+                    {/* Peak Hours Premium Card */}
+                    <div className="relative">
+                      <div className="absolute -inset-0.5 animate-pulse rounded-2xl bg-gradient-to-r from-primary/50 to-primary/20 opacity-50 blur-xl"></div>
+                      <Card className="relative rounded-2xl border border-border bg-card shadow-2xl backdrop-blur-xl">
+                        <CardHeader className="pb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/20 rounded-lg">
+                              <Clock className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg sm:text-xl gradient-text">Peak Hours Premium</CardTitle>
+                              <CardDescription className="text-xs sm:text-sm text-muted-foreground">Add premium for peak hours</CardDescription>
+                            </div>
                           </div>
-                          <div>
-                            <CardTitle className="text-lg sm:text-xl gradient-text">Time-Based Pricing</CardTitle>
-                            <CardDescription className="text-xs sm:text-sm text-muted-foreground">Add premiums for peak hours and weekends</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="peak-start" className="text-xs font-medium text-foreground">Start Time</Label>
+                              <Input
+                                id="peak-start"
+                                type="time"
+                                value={peakHoursStart}
+                                onChange={(e) => setPeakHoursStart(e.target.value)}
+                                className="bg-card/50 border-border focus:border-primary/50 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="peak-end" className="text-xs font-medium text-foreground">End Time</Label>
+                              <Input
+                                id="peak-end"
+                                type="time"
+                                value={peakHoursEnd}
+                                onChange={(e) => setPeakHoursEnd(e.target.value)}
+                                className="bg-card/50 border-border focus:border-primary/50 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="peak-premium" className="text-xs font-medium text-foreground">Premium Amount ($)</Label>
+                              <Input
+                                id="peak-premium"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={peakHoursPremium}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setPeakHoursPremium(val === '' ? '' : (parseFloat(val) || 0))
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    setPeakHoursPremium(0)
+                                  }
+                                }}
+                                className="bg-card/50 border-border focus:border-primary/50 text-sm"
+                                placeholder="0.00"
+                              />
+                            </div>
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4 sm:space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-3">
-                            <Label htmlFor="peak-start" className="text-sm font-medium">Peak Hours Start</Label>
-                            <Input
-                              id="peak-start"
-                              type="time"
-                              value={peakHoursStart}
-                              onChange={(e) => setPeakHoursStart(e.target.value)}
-                              className="bg-card/50 border-border focus:border-primary/50"
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <Label htmlFor="peak-end" className="text-sm font-medium">Peak Hours End</Label>
-                            <Input
-                              id="peak-end"
-                              type="time"
-                              value={peakHoursEnd}
-                              onChange={(e) => setPeakHoursEnd(e.target.value)}
-                              className="bg-card/50 border-border focus:border-primary/50"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <Label htmlFor="peak-premium" className="text-sm font-medium">Peak Hours Premium ($)</Label>
-                          <Input
-                            id="peak-premium"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={peakHoursPremium}
-                            onChange={(e) => setPeakHoursPremium(parseFloat(e.target.value) || 0)}
-                            className="bg-card/50 border-border focus:border-primary/50"
-                            placeholder="0.00"
-                          />
                           <p className="text-xs text-muted-foreground">Additional amount charged during peak hours</p>
-                        </div>
-                        <Separator className="bg-border" />
-                        <div className="space-y-3">
-                          <Label htmlFor="weekend-premium" className="text-sm font-medium">Weekend Premium ($)</Label>
-                          <Input
-                            id="weekend-premium"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={weekendPremium}
-                            onChange={(e) => setWeekendPremium(parseFloat(e.target.value) || 0)}
-                            className="bg-card/50 border-border focus:border-primary/50"
-                            placeholder="0.00"
-                          />
-                          <p className="text-xs text-muted-foreground">Additional amount charged on weekends (Saturday & Sunday)</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Weekend Premium Card */}
+                    <div className="relative">
+                      <div className="absolute -inset-0.5 animate-pulse rounded-2xl bg-gradient-to-r from-primary/50 to-primary/20 opacity-50 blur-xl"></div>
+                      <Card className="relative rounded-2xl border border-border bg-card shadow-2xl backdrop-blur-xl">
+                        <CardHeader className="pb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/20 rounded-lg">
+                              <Calendar className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg sm:text-xl gradient-text">Weekend Premium</CardTitle>
+                              <CardDescription className="text-xs sm:text-sm text-muted-foreground">Add premium for weekends</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="weekend-premium" className="text-sm font-medium">Premium Amount ($)</Label>
+                            <Input
+                              id="weekend-premium"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={weekendPremium}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setWeekendPremium(val === '' ? '' : (parseFloat(val) || 0))
+                              }}
+                              onBlur={(e) => {
+                                if (e.target.value === '') {
+                                  setWeekendPremium(0)
+                                }
+                              }}
+                              className="bg-card/50 border-border focus:border-primary/50"
+                              placeholder="0.00"
+                            />
+                            <p className="text-xs text-muted-foreground">Additional amount charged on weekends (Saturday & Sunday)</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
                 )}
 
                 {/* Refund Policy */}
@@ -888,7 +1012,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                               type="number"
                               min="1"
                               value={refundHoursBefore}
-                              onChange={(e) => setRefundHoursBefore(parseInt(e.target.value) || 24)}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setRefundHoursBefore(val === '' ? '' : (parseInt(val) || 24))
+                              }}
+                              onBlur={(e) => {
+                                if (e.target.value === '') {
+                                  setRefundHoursBefore(24)
+                                }
+                              }}
                               className="bg-card/50 border-border focus:border-primary/50"
                               placeholder="24"
                             />
@@ -900,8 +1032,8 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                   </div>
                 )}
 
-                {/* No-Show Policy */}
-                {requirePayment && (
+                {/* No-Show Policy - Commented out, can be restored later */}
+                {/* {requirePayment && (
                   <div className="relative">
                     <div className="absolute -inset-0.5 animate-pulse rounded-2xl bg-gradient-to-r from-primary/50 to-primary/20 opacity-50 blur-xl"></div>
                     <Card className="relative rounded-2xl border border-border bg-card shadow-2xl backdrop-blur-xl">
@@ -969,7 +1101,15 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                                   min="0"
                                   max={noShowChargeType === 'percentage' ? '100' : undefined}
                                   value={noShowChargeValue}
-                                  onChange={(e) => setNoShowChargeValue(parseFloat(e.target.value) || 0)}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setNoShowChargeValue(val === '' ? '' : (parseFloat(val) || 0))
+                                  }}
+                                  onBlur={(e) => {
+                                    if (e.target.value === '') {
+                                      setNoShowChargeValue(0)
+                                    }
+                                  }}
                                   className="bg-card/50 border-border focus:border-primary/50"
                                   placeholder={noShowChargeType === 'amount' ? '0.00' : '0'}
                                 />
@@ -985,7 +1125,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                       </CardContent>
                     </Card>
                   </div>
-                )}
+                )} */}
               </TabsContent>
             </div>
           </Tabs>

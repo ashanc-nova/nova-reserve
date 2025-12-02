@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { Loader2, CheckCircle2, CreditCard, Calendar, Clock, Users, DollarSign, User } from 'lucide-react'
+import { Loader2, CheckCircle2, CreditCard, Calendar, Clock, Users, DollarSign, User, Edit } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { useToast } from '../hooks/use-toast'
@@ -395,24 +395,38 @@ export default function PaymentPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={handleConfirm}
-                disabled={confirming}
-                className="w-full h-12 sm:h-14 text-sm sm:text-base font-semibold"
-                size="lg"
-              >
-                {confirming ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Confirming...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                    Confirm Payment
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const restaurantPrefix = getRestaurantPrefix()
+                    navigate(`${restaurantPrefix}/reserve?reservationId=${reservationId}`)
+                  }}
+                  className="h-12 sm:h-14 text-sm sm:text-base font-semibold flex-shrink-0"
+                  size="lg"
+                >
+                  <Edit className="mr-2 h-5 w-5" />
+                  Edit
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-semibold"
+                  size="lg"
+                >
+                  {confirming ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-5 w-5" />
+                      Confirm Payment
+                    </>
+                  )}
+                </Button>
+              </div>
 
               {/* Refund Policy - Subtle one-liner */}
               {paymentSettings?.refund_policy && (

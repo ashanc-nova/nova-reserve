@@ -4,10 +4,12 @@ import { Button } from '../components/ui/button'
 import { CheckCircle2, DollarSign, Mail, Star, MessageSquare, Calendar, Clock, Users, User, Phone } from 'lucide-react'
 import { useToast } from '../hooks/use-toast'
 import { Toaster } from '../components/ui/toaster'
-import { getReservation } from '../lib/supabase-data'
+import { getReservation, saveMessageHistory } from '../lib/supabase-data'
 import { useRestaurant } from '../lib/restaurant-context'
 import type { Reservation } from '../lib/supabase'
 import { formatInTimeZone } from 'date-fns-tz'
+import { sendCustomSMS } from '../lib/nova-api'
+import { formatDateWithTimezone, formatTimeInTimezone } from '../lib/timezone-utils'
 
 export default function ReservationConfirmationPage() {
   const { reservationId } = useParams<{ reservationId: string }>()
@@ -18,6 +20,7 @@ export default function ReservationConfirmationPage() {
   const { toast } = useToast()
   const [reservation, setReservation] = useState<Reservation | null>(null)
   const [loading, setLoading] = useState(true)
+  const [smsSent, setSmsSent] = useState(false)
   const paymentStatus = searchParams.get('payment_status')
 
   // Get restaurant prefix from URL path
@@ -78,11 +81,109 @@ export default function ReservationConfirmationPage() {
             // Reload reservation to get updated status and payment_amount
             const updatedRes = await getReservation(reservationId)
             setReservation(updatedRes)
+            
+            // Send confirmation SMS
+            if (updatedRes && !smsSent) {
+              const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+              try {
+                let confirmationMessage = confirmationTemplate
+                  .replace(/{name}/g, updatedRes.name)
+                  .replace(/{date}/g, formatDateWithTimezone(updatedRes.date_time))
+                  .replace(/{time}/g, formatTimeInTimezone(updatedRes.date_time))
+                  .replace(/{party_size}/g, updatedRes.party_size.toString())
+                
+                // Remove special characters (keep only alphanumeric, spaces, and basic punctuation)
+                confirmationMessage = confirmationMessage.replace(/[^\w\s.,!?]/g, '')
+                
+                // Limit to 100 characters
+                confirmationMessage = confirmationMessage.length > 100 ? confirmationMessage.substring(0, 100) : confirmationMessage
+                
+                const phoneNumber = updatedRes.phone.replace(/\D/g, '')
+                
+                await sendCustomSMS({
+                  mobileNumber: phoneNumber,
+                  countryCode: '+1',
+                  message: confirmationMessage
+                })
+                
+                // Save message history
+                await saveMessageHistory({
+                  reservation_id: updatedRes.id,
+                  phone_number: updatedRes.phone,
+                  message: confirmationMessage,
+                  status: 'sent'
+                })
+                
+                setSmsSent(true)
+              } catch (smsError: any) {
+                // Log SMS error but don't fail the confirmation
+                console.error('Failed to send confirmation SMS:', smsError)
+                try {
+                  await saveMessageHistory({
+                    reservation_id: updatedRes.id,
+                    phone_number: updatedRes.phone,
+                    message: confirmationTemplate,
+                    status: 'failed'
+                  })
+                } catch (historyError) {
+                  console.error('Failed to save message history:', historyError)
+                }
+              }
+            }
           } else {
             setReservation(res)
           }
         } else {
           setReservation(res)
+          
+          // Send confirmation SMS for already confirmed reservations (non-payment flow)
+          if (res.status === 'confirmed' && !smsSent) {
+            const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+            try {
+              let confirmationMessage = confirmationTemplate
+                .replace(/{name}/g, res.name)
+                .replace(/{date}/g, formatDateWithTimezone(res.date_time))
+                .replace(/{time}/g, formatTimeInTimezone(res.date_time))
+                .replace(/{party_size}/g, res.party_size.toString())
+              
+              // Remove special characters (keep only alphanumeric, spaces, and basic punctuation)
+              confirmationMessage = confirmationMessage.replace(/[^\w\s.,!?]/g, '')
+              
+              // Limit to 100 characters
+              confirmationMessage = confirmationMessage.length > 100 ? confirmationMessage.substring(0, 100) : confirmationMessage
+              
+              const phoneNumber = res.phone.replace(/\D/g, '')
+              
+              await sendCustomSMS({
+                mobileNumber: phoneNumber,
+                countryCode: '+1',
+                message: confirmationMessage
+              })
+              
+              // Save message history
+              await saveMessageHistory({
+                reservation_id: res.id,
+                phone_number: res.phone,
+                message: confirmationMessage,
+                status: 'sent'
+              })
+              
+              setSmsSent(true)
+            } catch (smsError: any) {
+              // Log SMS error but don't fail the confirmation
+              console.error('Failed to send confirmation SMS:', smsError)
+              try {
+                await saveMessageHistory({
+                  reservation_id: res.id,
+                  phone_number: res.phone,
+                  message: confirmationTemplate,
+                  status: 'failed'
+                })
+              } catch (historyError) {
+                console.error('Failed to save message history:', historyError)
+              }
+            }
+          }
         }
       } catch (error: any) {
         toast({ title: 'Error', description: error.message || 'Failed to load reservation', variant: 'destructive' })
@@ -93,7 +194,8 @@ export default function ReservationConfirmationPage() {
     }
 
     loadReservation()
-  }, [reservationId, navigate, toast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservationId, paymentStatus])
 
   if (loading) {
     return (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -19,15 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select"
-import { getRestaurant, getAvailableSlots, addReservation } from '../lib/supabase-data'
-import { createNovaCustomer } from '../lib/nova-api'
+import { getRestaurant, getAvailableSlots, addReservation, getReservation, updateReservation, saveMessageHistory } from '../lib/supabase-data'
+import { createNovaCustomer, sendCustomSMS } from '../lib/nova-api'
+import { formatDateWithTimezone, formatTimeInTimezone } from '../lib/timezone-utils'
 import { useRestaurant } from '../lib/restaurant-context'
 import { Toaster } from '../components/ui/toaster'
 
 export default function GuestReservationPage() {
   const { toast } = useToast()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { restaurant: contextRestaurant } = useRestaurant()
+  const reservationId = searchParams.get('reservationId')
   
   // Get restaurant prefix from URL path
   const getRestaurantPrefix = () => {
@@ -97,6 +100,65 @@ export default function GuestReservationPage() {
     loadSettings()
   }, [])
 
+  // Load existing reservation if reservationId is present
+  useEffect(() => {
+    const loadExistingReservation = async () => {
+      if (!reservationId) return
+
+      try {
+        const existingReservation = await getReservation(reservationId)
+        if (existingReservation && existingReservation.status === 'draft') {
+          // Populate form with existing reservation data
+          setName(existingReservation.name || '')
+          setPhone(existingReservation.phone || '')
+          setEmail(existingReservation.email || '')
+          setPartySize(String(existingReservation.party_size || '2'))
+          
+          if (existingReservation.date_time) {
+            const reservationDate = new Date(existingReservation.date_time)
+            setDate(reservationDate)
+            
+            // Format time for display (convert from 24h to 12h format)
+            const hours = reservationDate.getHours()
+            const minutes = reservationDate.getMinutes()
+            const ampm = hours >= 12 ? 'PM' : 'AM'
+            const displayHours = hours % 12 || 12
+            const timeStr = `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`
+            setTime(timeStr)
+          }
+          
+          if (existingReservation.special_requests) {
+            setSpecialRequests(existingReservation.special_requests)
+          }
+          
+          if (existingReservation.special_occasion_type) {
+            setSpecialOccasion(existingReservation.special_occasion_type)
+          }
+        } else if (existingReservation && existingReservation.status !== 'draft') {
+          // Reservation is not in draft status, clear the reservationId from URL
+          toast({
+            title: 'Reservation Already Processed',
+            description: 'This reservation has already been confirmed or processed.',
+            variant: 'default'
+          })
+          // Clear the reservationId from URL
+          const url = new URL(window.location.href)
+          url.searchParams.delete('reservationId')
+          window.history.replaceState({}, '', url.toString())
+        }
+      } catch (error: any) {
+        console.error('Error loading existing reservation:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to load reservation details',
+          variant: 'destructive'
+        })
+      }
+    }
+
+    loadExistingReservation()
+  }, [reservationId, toast])
+
   // Load available slots when date or party size changes
   useEffect(() => {
     if (date) {
@@ -155,39 +217,58 @@ export default function GuestReservationPage() {
         })
       }
       
-      // If payment is required, create draft reservation and redirect to payment
+      // If payment is required, create or update draft reservation and redirect to payment
       if (settings.requirePayment) {
-        console.log('Payment required, creating draft reservation...')
+        console.log('Payment required, creating/updating draft reservation...')
         
         try {
-          const reservation = await addReservation({
-            name,
-            phone,
-            email,
-            party_size: parseInt(partySize, 10),
-            date_time: dateTime.toISOString(),
-            // @ts-ignore - TypeScript cache issue, 'draft' is valid in the actual function signature
-            status: 'draft',
-            special_requests: settings.allowSpecialNotes ? (specialRequests || undefined) : undefined,
-            special_occasion_type: specialOccasion && specialOccasion !== 'none' ? specialOccasion : undefined,
-            slot_start_time: time24,
-            novacustomer_id: novaCustomerId,
-          })
+          let reservation
           
-          console.log('Draft reservation created successfully:', reservation.id, 'Status:', reservation.status)
-          
-          // Verify the status is actually 'draft'
-          if (reservation.status !== 'draft') {
-            console.error('ERROR: Reservation was not created with draft status! Actual status:', reservation.status)
-            toast({ 
-              title: 'Error', 
-              description: `Reservation was created with status ${reservation.status} instead of draft`, 
-              variant: 'destructive' 
+          if (reservationId) {
+            // Update existing reservation
+            console.log('Updating existing reservation:', reservationId)
+            reservation = await updateReservation(reservationId, {
+              name,
+              phone,
+              email,
+              party_size: parseInt(partySize, 10),
+              date_time: dateTime.toISOString(),
+              special_requests: settings.allowSpecialNotes ? (specialRequests || undefined) : undefined,
+              special_occasion_type: specialOccasion && specialOccasion !== 'none' ? specialOccasion : undefined,
+              slot_start_time: time24,
+              novacustomer_id: novaCustomerId,
             })
-            return
+            console.log('Reservation updated successfully:', reservation.id)
+          } else {
+            // Create new draft reservation
+            reservation = await addReservation({
+              name,
+              phone,
+              email,
+              party_size: parseInt(partySize, 10),
+              date_time: dateTime.toISOString(),
+              // @ts-ignore - TypeScript cache issue, 'draft' is valid in the actual function signature
+              status: 'draft',
+              special_requests: settings.allowSpecialNotes ? (specialRequests || undefined) : undefined,
+              special_occasion_type: specialOccasion && specialOccasion !== 'none' ? specialOccasion : undefined,
+              slot_start_time: time24,
+              novacustomer_id: novaCustomerId,
+            })
+            console.log('Draft reservation created successfully:', reservation.id, 'Status:', reservation.status)
+            
+            // Verify the status is actually 'draft'
+            if (reservation.status !== 'draft') {
+              console.error('ERROR: Reservation was not created with draft status! Actual status:', reservation.status)
+              toast({ 
+                title: 'Error', 
+                description: `Reservation was created with status ${reservation.status} instead of draft`, 
+                variant: 'destructive' 
+              })
+              return
+            }
           }
           
-          // If Nova customer ID wasn't set during creation, update it now
+          // If Nova customer ID wasn't set during creation/update, update it now
           if (novaCustomerId && !reservation.novacustomer_id) {
             try {
               // Update using Supabase directly to avoid TypeScript cache issues
@@ -206,10 +287,10 @@ export default function GuestReservationPage() {
           window.location.href = paymentUrl
           return
         } catch (paymentError: any) {
-          console.error('Error creating draft reservation:', paymentError)
+          console.error('Error creating/updating draft reservation:', paymentError)
           toast({ 
             title: 'Error', 
-            description: paymentError.message || 'Failed to create reservation. Please try again.', 
+            description: paymentError.message || 'Failed to save reservation. Please try again.', 
             variant: 'destructive' 
           })
           return
@@ -241,6 +322,53 @@ export default function GuestReservationPage() {
           if (error) throw error
         } catch (updateError) {
           console.error('Error updating Nova customer ID:', updateError)
+        }
+      }
+
+      // Send confirmation SMS if reservation is confirmed
+      if (reservation.status === 'confirmed') {
+        const confirmationTemplate = 'Hi {name}, confirmed: {date} at {time} for {party_size} guests. See you soon!'
+        try {
+          let confirmationMessage = confirmationTemplate
+            .replace(/{name}/g, reservation.name)
+            .replace(/{date}/g, formatDateWithTimezone(reservation.date_time))
+            .replace(/{time}/g, formatTimeInTimezone(reservation.date_time))
+            .replace(/{party_size}/g, reservation.party_size.toString())
+          
+          // Remove special characters (keep only alphanumeric, spaces, and basic punctuation)
+          confirmationMessage = confirmationMessage.replace(/[^\w\s.,!?]/g, '')
+          
+          // Limit to 100 characters
+          confirmationMessage = confirmationMessage.length > 100 ? confirmationMessage.substring(0, 100) : confirmationMessage
+          
+          const phoneNumber = reservation.phone.replace(/\D/g, '')
+          
+          await sendCustomSMS({
+            mobileNumber: phoneNumber,
+            countryCode: '+1',
+            message: confirmationMessage
+          })
+          
+          // Save message history
+          await saveMessageHistory({
+            reservation_id: reservation.id,
+            phone_number: reservation.phone,
+            message: confirmationMessage,
+            status: 'sent'
+          })
+        } catch (smsError: any) {
+          // Log SMS error but don't fail the reservation creation
+          console.error('Failed to send confirmation SMS:', smsError)
+          try {
+            await saveMessageHistory({
+              reservation_id: reservation.id,
+              phone_number: reservation.phone,
+              message: confirmationTemplate,
+              status: 'failed'
+            })
+          } catch (historyError) {
+            console.error('Failed to save message history:', historyError)
+          }
         }
       }
 
