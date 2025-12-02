@@ -801,8 +801,7 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                 <div className={cn(
                   "absolute -inset-0.5 rounded-full blur-sm opacity-50",
                   currentReservation.status === 'draft' && "bg-gray-400",
-                  currentReservation.status === 'confirmed' && "bg-primary",
-                  currentReservation.status === 'notified' && "bg-blue-500",
+                  (currentReservation.status === 'confirmed' || currentReservation.status === 'notified') && "bg-primary",
                   currentReservation.status === 'seated' && "bg-green-500",
                   currentReservation.status === 'cancelled' && "bg-red-500"
                 )}></div>
@@ -811,16 +810,14 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                     'relative font-semibold px-4 py-2 text-xs uppercase tracking-wider shadow-lg',
                     currentReservation.status === 'draft' 
                       ? 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-2 border-gray-400 dark:from-gray-800 dark:to-gray-700 dark:text-gray-200 dark:border-gray-600' 
-                      : currentReservation.status === 'confirmed' 
+                      : (currentReservation.status === 'confirmed' || currentReservation.status === 'notified')
                       ? 'bg-gradient-to-r from-primary/30 to-primary/20 text-primary border-2 border-primary/50 shadow-primary/20' 
-                      : currentReservation.status === 'notified' 
-                      ? 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-2 border-blue-400 dark:from-blue-900/50 dark:to-blue-800/50 dark:text-blue-300 dark:border-blue-500/50' 
                       : currentReservation.status === 'seated' 
                       ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-2 border-green-400 dark:from-green-900/50 dark:to-green-800/50 dark:text-green-300 dark:border-green-500/50' 
                       : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-2 border-gray-400 dark:from-gray-800 dark:to-gray-700 dark:text-gray-200 dark:border-gray-600'
                   )}
                 >
-                  {currentReservation.status}
+                  {currentReservation.status === 'notified' ? 'confirmed' : currentReservation.status}
                 </Badge>
               </div>
             </div>

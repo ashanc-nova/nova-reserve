@@ -98,8 +98,10 @@ export function ReservationsTable({
   // Check if any reservation has a payment amount
   const hasPaymentAmount = displayReservations.some(r => r.payment_amount && r.payment_amount > 0)
   
-  // Get unique statuses from reservations
-  const uniqueStatuses = Array.from(new Set(displayReservations.map(r => r.status))).sort()
+  // Get unique statuses from reservations, excluding 'notified' (treat as 'confirmed' in UI)
+  const uniqueStatuses = Array.from(new Set(displayReservations.map(r => r.status)))
+    .filter(status => status !== 'notified') // Remove 'notified' from status filters
+    .sort()
   
   // Check if filters are applied
   const hasActiveFilters = statusFilters.length > 0
@@ -131,9 +133,13 @@ export function ReservationsTable({
   })
   
   // Filter by status (multi-select)
+  // Treat 'notified' as 'confirmed' for filtering purposes
   const statusFilteredReservations = statusFilters.length === 0
     ? sortedReservations 
-    : sortedReservations.filter(r => statusFilters.includes(r.status))
+    : sortedReservations.filter(r => {
+        const displayStatus = r.status === 'notified' ? 'confirmed' : r.status
+        return statusFilters.includes(displayStatus)
+      })
   
   // Filter by search query (name, phone, email)
   const searchTerm = (searchQuery || '').trim()
@@ -425,13 +431,12 @@ export function ReservationsTable({
                         variant="secondary"
                         className={cn(
                           'font-semibold whitespace-nowrap px-4 py-2',
-                          entry.status === 'confirmed' ? 'bg-primary/20 text-primary border-2 border-primary/30' :
-                          entry.status === 'notified' ? 'bg-blue-100 text-blue-700 border-2 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-500/30' :
+                          (entry.status === 'confirmed' || entry.status === 'notified') ? 'bg-primary/20 text-primary border-2 border-primary/30' :
                           entry.status === 'seated' ? 'bg-green-100 text-green-700 border-2 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' :
                           'bg-gray-100 text-gray-700 border-2 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30'
                         )}
                       >
-                        {entry.status}
+                        {entry.status === 'notified' ? 'confirmed' : entry.status}
                       </Badge>
                     </div>
 
@@ -531,13 +536,12 @@ export function ReservationsTable({
                           variant="secondary"
                           className={cn(
                             'font-semibold whitespace-nowrap',
-                            entry.status === 'confirmed' ? 'bg-primary/20 text-primary border border-primary/30' :
-                            entry.status === 'notified' ? 'bg-blue-100 text-blue-700 border border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-500/30' :
+                            (entry.status === 'confirmed' || entry.status === 'notified') ? 'bg-primary/20 text-primary border border-primary/30' :
                             entry.status === 'seated' ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' :
                             'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30'
                           )}
                         >
-                          {entry.status}
+                          {entry.status === 'notified' ? 'confirmed' : entry.status}
                         </Badge>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
