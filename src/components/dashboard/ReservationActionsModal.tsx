@@ -298,6 +298,13 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
         status: 'sent'
       })
       
+      // Update status to 'notified' when SMS is sent from dashboard
+      // Only update if current status is 'draft' or 'confirmed'
+      if (currentReservation.status === 'draft' || currentReservation.status === 'confirmed') {
+        await updateReservationStatus(currentReservation.id, 'notified')
+        setCurrentReservation({ ...currentReservation, status: 'notified' })
+      }
+      
       toast({ 
         title: "Message Sent", 
         description: `Message sent to ${currentReservation.name} at ${currentReservation.phone}.`

@@ -305,7 +305,7 @@ export default function GuestReservationPage() {
         email,
         party_size: parseInt(partySize, 10),
         date_time: dateTime.toISOString(),
-        status: settings.autoConfirm ? 'confirmed' : 'notified',
+        status: settings.autoConfirm ? 'confirmed' : 'draft',
         special_requests: settings.allowSpecialNotes ? (specialRequests || undefined) : undefined,
         special_occasion_type: specialOccasion && specialOccasion !== 'none' ? specialOccasion : undefined,
         slot_start_time: time24,
@@ -514,7 +514,7 @@ export default function GuestReservationPage() {
                           )}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-card/80 backdrop-blur-xl">
+                      <PopoverContent className="w-auto p-0 bg-card/80 backdrop-blur-xl" align="start">
                         <Calendar
                           mode="single"
                           selected={date}
