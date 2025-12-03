@@ -5,7 +5,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { useToast } from '../hooks/use-toast'
-import { Loader2, User, Phone, CheckCircle2, Calendar as CalendarIcon, Mail, MessageSquare, Star, ChevronDown } from 'lucide-react'
+import { Loader2, User, Phone, CheckCircle2, Calendar as CalendarIcon, Mail, MessageSquare, Star, ChevronDown, Clock } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 import { Calendar } from '../components/ui/calendar'
 import { addDays, addHours } from 'date-fns'
@@ -374,6 +374,58 @@ export default function GuestReservationPage() {
           }
         }
       }
+      
+      // Send pending notification SMS if reservation is draft
+      if (reservation.status === 'draft') {
+        const restaurantName = contextRestaurant?.name || 'Restaurant'
+        const isPendingPayment = settings.requirePayment && !reservation.payment_amount
+        const pendingTemplate = isPendingPayment
+          ? 'Hi {name}, {restaurant_name}: Your reservation for {date} at {time} is pending payment. Please complete payment to confirm.'
+          : 'Hi {name}, {restaurant_name}: Your reservation for {date} at {time} is pending approval. We will confirm shortly!'
+        
+        try {
+          let pendingMessage = pendingTemplate
+            .replace(/{name}/g, reservation.name)
+            .replace(/{restaurant_name}/g, restaurantName)
+            .replace(/{date}/g, formatDateWithTimezone(reservation.date_time))
+            .replace(/{time}/g, formatTimeInTimezone(reservation.date_time))
+          
+          // Remove special characters (keep only alphanumeric, spaces, and basic punctuation)
+          pendingMessage = pendingMessage.replace(/[^\w\s.,!?]/g, '')
+          
+          // Limit to 100 characters
+          pendingMessage = pendingMessage.length > 100 ? pendingMessage.substring(0, 100) : pendingMessage
+          
+          const phoneNumber = reservation.phone.replace(/\D/g, '')
+          
+          await sendCustomSMS({
+            mobileNumber: phoneNumber,
+            countryCode: '+1',
+            message: pendingMessage
+          })
+          
+          // Save message history
+          await saveMessageHistory({
+            reservation_id: reservation.id,
+            phone_number: reservation.phone,
+            message: pendingMessage,
+            status: 'sent'
+          })
+        } catch (smsError: any) {
+          // Log SMS error but don't fail the reservation creation
+          console.error('Failed to send pending notification SMS:', smsError)
+          try {
+            await saveMessageHistory({
+              reservation_id: reservation.id,
+              phone_number: reservation.phone,
+              message: pendingTemplate,
+              status: 'failed'
+            })
+          } catch (historyError) {
+            console.error('Failed to save message history:', historyError)
+          }
+        }
+      }
 
       setReservationDetails(reservation)
       setSubmitted(true)
@@ -403,6 +455,11 @@ export default function GuestReservationPage() {
     const formattedDate = reservationDetails ? formatInUserTimezone(new Date(reservationDetails.date_time), 'PPP') : ''
     const formattedTime = reservationDetails ? formatInUserTimezone(new Date(reservationDetails.date_time), 'p') : ''
     
+    // Determine if it's a draft and what type
+    const isDraft = reservationDetails?.status === 'draft'
+    const isPendingPayment = isDraft && settings.requirePayment && !reservationDetails?.payment_amount
+    const isPendingApproval = isDraft && !settings.autoConfirm && (!settings.requirePayment || reservationDetails?.payment_amount)
+    
     return (
       <>
         <Toaster />
@@ -411,17 +468,40 @@ export default function GuestReservationPage() {
             {/* Success Icon */}
             <div className="flex justify-center">
               <div className="relative">
-                <div className="absolute inset-0 bg-green-500/20 rounded-full blur-2xl animate-pulse"></div>
-                <div className="relative h-24 w-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/50 ring-4 ring-green-500/20">
-                  <CheckCircle2 className="h-14 w-14 text-white" strokeWidth={2.5} />
-                </div>
+                {isDraft ? (
+                  <>
+                    <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-2xl animate-pulse"></div>
+                    <div className="relative h-24 w-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center shadow-2xl shadow-yellow-500/50 ring-4 ring-yellow-500/20">
+                      <Clock className="h-14 w-14 text-white" strokeWidth={2.5} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-green-500/20 rounded-full blur-2xl animate-pulse"></div>
+                    <div className="relative h-24 w-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/50 ring-4 ring-green-500/20">
+                      <CheckCircle2 className="h-14 w-14 text-white" strokeWidth={2.5} />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Heading */}
             <div className="space-y-3">
-              <h1 className="text-4xl md:text-5xl font-bold gradient-text">Reservation Confirmed!</h1>
-              <p className="text-lg text-muted-foreground">A confirmation has been sent to your email.</p>
+              <h1 className="text-4xl md:text-5xl font-bold gradient-text">
+                {isPendingPayment 
+                  ? 'Payment Pending' 
+                  : isPendingApproval 
+                  ? 'Pending Approval' 
+                  : 'Reservation Confirmed!'}
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                {isPendingPayment
+                  ? 'Please complete payment to confirm your reservation. You will receive a confirmation once payment is processed.'
+                  : isPendingApproval
+                  ? 'Your reservation is pending approval. You will receive a confirmation SMS once it\'s approved.'
+                  : 'A confirmation has been sent to your email.'}
+              </p>
             </div>
 
             {/* Reservation Details Card */}
@@ -449,8 +529,8 @@ export default function GuestReservationPage() {
               </div>
             </div>
 
-            {/* Action Button */}
-            <div className="pt-4">
+            {/* Action Buttons */}
+            <div className="pt-4 flex flex-col sm:flex-row gap-3 items-center justify-center">
               <Button 
                 onClick={() => {
                   setSubmitted(false)
@@ -468,6 +548,15 @@ export default function GuestReservationPage() {
               >
                 Make another reservation
               </Button>
+              {(isPendingPayment || isPendingApproval) && (
+                <Button 
+                  onClick={() => navigate(`${restaurantPrefix}/reserve/status`)}
+                  variant="outline" 
+                  className="w-full sm:w-auto px-8 h-14 text-base font-semibold border-2 hover:bg-card/50 transition-all"
+                >
+                  Check Status
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -695,8 +784,17 @@ export default function GuestReservationPage() {
           </div>
         </form>
         
-        {/* Cancel Reservation Button - Below the form */}
-        <div className="mt-6 flex justify-center w-full max-w-3xl">
+        {/* Action Links - Below the form */}
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-3xl">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(`${restaurantPrefix}/reserve/status`)}
+            className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+          >
+            Check Reservation Status
+          </Button>
+          <span className="hidden sm:inline text-muted-foreground">•</span>
           <Button
             type="button"
             variant="ghost"

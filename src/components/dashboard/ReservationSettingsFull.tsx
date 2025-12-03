@@ -13,6 +13,16 @@ import { getRestaurant, updateRestaurantSettings } from '../../lib/supabase-data
 import { getTimeSlots, createTimeSlot, updateTimeSlot, deleteTimeSlot } from '../../lib/supabase-data'
 import { setRestaurantTimezone } from '../../lib/timezone-utils'
 import type { TimeSlot } from '../../lib/supabase'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog'
 
 interface ReservationSettingsFullProps {
   isOpen: boolean
@@ -65,6 +75,8 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedDay, setSelectedDay] = useState(new Date().getDay())
   const [editingSlot, setEditingSlot] = useState<Partial<TimeSlot> | null>(null)
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -243,7 +255,7 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
           day_of_week: selectedDay,
           start_time: startTime,
           end_time: endTime,
-          max_reservations: editingSlot.max_reservations || 4,
+          max_reservations: editingSlot.max_reservations ?? 4,
           is_default: true,
           is_active: true,
         } as TimeSlot)
@@ -256,14 +268,23 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
     }
   }
 
-  const handleDeleteSlot = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this time slot?')) return
+  const handleDeleteSlot = (id: string) => {
+    setDeletingSlotId(id)
+  }
+
+  const confirmDeleteSlot = async () => {
+    if (!deletingSlotId) return
+    
+    setIsDeleting(true)
     try {
-      await deleteTimeSlot(id)
+      await deleteTimeSlot(deletingSlotId)
       toast({ title: 'Success', description: 'Time slot deleted' })
       loadSlots()
+      setDeletingSlotId(null)
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete time slot', variant: 'destructive' })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -1378,13 +1399,22 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
                 <Input
                   type="number"
                   min="1"
-                  value={editingSlot.max_reservations || 4}
-                  onChange={(e) =>
+                  value={editingSlot.max_reservations ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value
                     setEditingSlot({
                       ...editingSlot,
-                      max_reservations: parseInt(e.target.value) || 1,
+                      max_reservations: value === '' ? undefined : parseInt(value) || 1,
                     })
-                  }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || !e.target.value) {
+                      setEditingSlot({
+                        ...editingSlot,
+                        max_reservations: 4,
+                      })
+                    }
+                  }}
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -1400,6 +1430,35 @@ export function ReservationSettingsFull({ isOpen, onClose, isEmbedded = false }:
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deletingSlotId !== null} onOpenChange={(open) => !open && setDeletingSlotId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Slot</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time slot? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSlot}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

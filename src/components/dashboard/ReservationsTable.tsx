@@ -32,6 +32,7 @@ interface ReservationsTableProps {
   reservationView?: ReservationView
   onReservationViewChange?: (view: ReservationView) => void
   searchQuery?: string
+  restaurantSettings?: any
 }
 
 export function ReservationsTable({ 
@@ -42,7 +43,8 @@ export function ReservationsTable({
   isEmbedded = false,
   reservationView = 'active',
   onReservationViewChange,
-  searchQuery = ''
+  searchQuery = '',
+  restaurantSettings
 }: ReservationsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortColumn, setSortColumn] = useState<SortColumn>(null)
@@ -427,17 +429,35 @@ export function ReservationsTable({
 
                     {/* Status Column */}
                     <div className={cn("col-span-1", hasPaymentAmount ? "min-w-[120px]" : "min-w-[140px]")}>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          'font-semibold whitespace-nowrap px-4 py-2',
-                          (entry.status === 'confirmed' || entry.status === 'notified') ? 'bg-primary/20 text-primary border-2 border-primary/30' :
-                          entry.status === 'seated' ? 'bg-green-100 text-green-700 border-2 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' :
-                          'bg-gray-100 text-gray-700 border-2 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30'
-                        )}
-                      >
-                        {entry.status === 'notified' ? 'confirmed' : entry.status}
-                      </Badge>
+                      {(() => {
+                        const getStatusDisplay = () => {
+                          const status = entry.status
+                          if (status === 'confirmed' || status === 'notified') {
+                            return { label: 'confirmed', color: 'bg-primary/20 text-primary border-2 border-primary/30' }
+                          }
+                          if (status === 'seated') {
+                            return { label: 'seated', color: 'bg-green-100 text-green-700 border-2 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' }
+                          }
+                          if (status === 'draft') {
+                            // In manager UI, all drafts show as "draft" regardless of type
+                            return { label: 'draft', color: 'bg-gray-100 text-gray-700 border-2 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30' }
+                          }
+                          // Handle other statuses (cancelled, completed, etc.)
+                          return { label: status, color: 'bg-gray-100 text-gray-700 border-2 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30' }
+                        }
+                        const statusDisplay = getStatusDisplay()
+                        return (
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'font-semibold whitespace-nowrap px-4 py-2',
+                              statusDisplay.color
+                            )}
+                          >
+                            {statusDisplay.label}
+                          </Badge>
+                        )
+                      })()}
                     </div>
 
                     {/* Special Column */}
@@ -532,17 +552,35 @@ export function ReservationsTable({
                         </TableCell>
                       )}
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'font-semibold whitespace-nowrap',
-                            (entry.status === 'confirmed' || entry.status === 'notified') ? 'bg-primary/20 text-primary border border-primary/30' :
-                            entry.status === 'seated' ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' :
-                            'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30'
-                          )}
-                        >
-                          {entry.status === 'notified' ? 'confirmed' : entry.status}
-                        </Badge>
+                        {(() => {
+                          const getStatusDisplay = () => {
+                            const status = entry.status
+                            if (status === 'confirmed' || status === 'notified') {
+                              return { label: 'confirmed', color: 'bg-primary/20 text-primary border border-primary/30' }
+                            }
+                            if (status === 'seated') {
+                              return { label: 'seated', color: 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-500/30' }
+                            }
+                            if (status === 'draft') {
+                              // In manager UI, all drafts show as "draft" regardless of type
+                              return { label: 'draft', color: 'bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30' }
+                            }
+                            // Handle other statuses (cancelled, completed, etc.)
+                            return { label: status, color: 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500/30' }
+                          }
+                          const statusDisplay = getStatusDisplay()
+                          return (
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                'font-semibold whitespace-nowrap',
+                                statusDisplay.color
+                              )}
+                            >
+                              {statusDisplay.label}
+                            </Badge>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col gap-1">

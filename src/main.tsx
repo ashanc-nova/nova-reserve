@@ -16,6 +16,7 @@ import PaymentPage from './pages/PaymentPage'
 import ReservationConfirmationPage from './pages/ReservationConfirmationPage'
 import PaymentFailedPage from './pages/PaymentFailedPage'
 import CancelReservationPage from './pages/CancelReservationPage'
+import CheckReservationStatusPage from './pages/CheckReservationStatusPage'
 import AdminPanel from './pages/AdminPanel'
 import { RestaurantGuard } from './components/RestaurantGuard'
 import { isAdminSubdomain } from './lib/subdomain-utils'
@@ -100,6 +101,14 @@ const router = createBrowserRouter([
     element: (
       <RestaurantGuard>
         <CancelReservationPage />
+      </RestaurantGuard>
+    )
+  },
+  { 
+    path: '/:restaurant_slug/reserve/status', 
+    element: (
+      <RestaurantGuard>
+        <CheckReservationStatusPage />
       </RestaurantGuard>
     )
   },

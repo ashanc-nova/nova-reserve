@@ -29,6 +29,7 @@ export default function ReservationsPage() {
     showThisWeek: false
   })
   const [kpiSettingsLoaded, setKpiSettingsLoaded] = useState(false)
+  const [restaurantSettings, setRestaurantSettings] = useState<any>(null)
 
   useEffect(() => {
     // Check if KPI settings are cached
@@ -51,6 +52,7 @@ export default function ReservationsPage() {
       try {
         const restaurant = await getRestaurant()
         const managerSettings = restaurant.settings?.manager_settings || {}
+        const reservationSettings = restaurant.settings?.reservation_settings || {}
         const visibility = {
           showAvgPartySize: managerSettings.show_avg_party_size !== undefined ? managerSettings.show_avg_party_size : false,
           showPeakHour: managerSettings.show_peak_hour !== undefined ? managerSettings.show_peak_hour : false,
@@ -58,6 +60,7 @@ export default function ReservationsPage() {
           showThisWeek: managerSettings.show_this_week !== undefined ? managerSettings.show_this_week : false
         }
         setKpiVisibility(visibility)
+        setRestaurantSettings(reservationSettings)
         // Set timezone for date formatting
         if (managerSettings.timezone) {
           setRestaurantTimezone(managerSettings.timezone)
@@ -77,6 +80,21 @@ export default function ReservationsPage() {
   const shouldShowLoading = useMemo(() => {
     return loading.reservations && allReservations.length === 0
   }, [loading.reservations, allReservations.length])
+
+  // Filter out seated and cancelled reservations from main table (Active tab - all active reservations)
+  // This needs to be calculated before early returns to maintain hook order
+  const activeReservations = useMemo(() => {
+    return allReservations.filter(
+      r => r.status !== 'seated' && r.status !== 'cancelled'
+    )
+  }, [allReservations])
+  
+  // Calculate total drafts (both pending payment and pending approval show as "draft" in manager UI)
+  // This must be before early returns to maintain hook order
+  const draftsNeedingApproval = useMemo(() => {
+    // Count all drafts - both pending payment and pending approval
+    return activeReservations.filter(r => r.status === 'draft').length
+  }, [activeReservations])
 
   // Only show loading spinner if we have no data AND are currently loading
   // Don't show loading if we already have data (even if loading state is true)
@@ -132,11 +150,6 @@ export default function ReservationsPage() {
   const cancellationRate = allReservations.length > 0 
     ? ((cancelledCount / allReservations.length) * 100).toFixed(1)
     : '0'
-
-  // Filter out seated and cancelled reservations from main table (Active tab - all active reservations)
-  const activeReservations = allReservations.filter(
-    r => r.status !== 'seated' && r.status !== 'cancelled'
-  )
   
   // Get seated and cancelled reservations for history (Past tab)
   const thirtyDaysAgo = subDays(new Date(), 30)
@@ -244,7 +257,7 @@ export default function ReservationsPage() {
                 </p>
               </div>
             ) : (
-              <ReservationsTable reservations={historyReservations} isEmbedded={false} />
+              <ReservationsTable reservations={historyReservations} isEmbedded={false} restaurantSettings={restaurantSettings} />
             )}
           </div>
         </div>
@@ -304,13 +317,18 @@ export default function ReservationsPage() {
                   setSearchQuery('')
                 }}
                 className={cn(
-                  "px-6 py-2 text-sm font-medium transition-all rounded-md",
+                  "px-6 py-2 text-sm font-medium transition-all rounded-md relative",
                   reservationView === 'active' 
                     ? 'bg-primary !text-white hover:bg-primary/90 shadow-sm' 
                     : 'text-muted-foreground hover:text-foreground hover:bg-transparent'
                 )}
               >
                 Active
+                {draftsNeedingApproval > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                    {draftsNeedingApproval > 9 ? '9+' : draftsNeedingApproval}
+                  </span>
+                )}
               </Button>
               <Button
                 variant="ghost"
@@ -468,13 +486,18 @@ export default function ReservationsPage() {
                 setSearchQuery('')
               }}
               className={cn(
-                "px-6 py-2 text-sm font-medium transition-all rounded-md",
+                "px-6 py-2 text-sm font-medium transition-all rounded-md relative",
                 reservationView === 'active' 
                   ? 'bg-primary !text-white hover:bg-primary/90 shadow-sm' 
                   : 'text-muted-foreground hover:text-foreground hover:bg-transparent'
               )}
             >
               Active
+              {draftsNeedingApproval > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                  {draftsNeedingApproval > 9 ? '9+' : draftsNeedingApproval}
+                </span>
+              )}
             </Button>
             <Button
               variant="ghost"
@@ -530,6 +553,7 @@ export default function ReservationsPage() {
             reservationView={reservationView}
             onReservationViewChange={setReservationView}
             searchQuery={searchQuery}
+            restaurantSettings={restaurantSettings}
           />
         </div>
       </div>

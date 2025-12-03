@@ -51,11 +51,11 @@ const MESSAGE_TEMPLATES = [
     label: 'Running Late',
     text: 'Hi {name}, {restaurant_name} is running behind. Your reservation for {date} at {time} may be delayed 15-20 min. Thanks!'
   },
-  {
-    id: 'cancellation',
-    label: 'Cancellation Notice',
-    text: 'Hi {name}, {restaurant_name} needs to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
-  },
+  // {
+  //   id: 'cancellation',
+  //   label: 'Cancellation Notice',
+  //   text: 'Hi {name}, {restaurant_name} needs to cancel your reservation for {date} at {time}. We apologize. Please contact us to reschedule.'
+  // },
   {
     id: 'confirmation',
     label: 'Confirmation',
@@ -524,12 +524,12 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                   </div>
                   <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                     {areas.map((area) => {
-                      const allTables = area.tables.filter(
-                        table => table.seatingCapacity >= currentReservation.party_size
-                      )
-                      const availableTables = allTables.filter(table => !table.isTableOccupied)
-                      const occupiedTables = allTables.filter(table => table.isTableOccupied)
-                      const totalTables = availableTables.length + occupiedTables.length
+                      // Filter tables by party size and sort by displayOrder
+                      const allTables = area.tables
+                        .filter(table => table.seatingCapacity >= currentReservation.party_size)
+                        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                      
+                      const totalTables = allTables.length
                       
                       // Calculate number of columns needed
                       // First 15 tables fill 3 rows with 5 columns each
@@ -560,52 +560,47 @@ export function ReservationActionsModal({ reservation, open, onOpenChange }: Res
                           ) : (
                             <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide -mr-2 pr-2">
                               <div className="grid gap-3 pb-2 auto-rows-max" style={{ gridTemplateColumns: `repeat(${totalColumns}, minmax(6rem, 1fr))` }}>
-                                {/* Show available tables first */}
-                                {availableTables.map((table) => (
-                                  <Button
-                                    key={table.refId}
-                                    variant="outline"
-                                    className={cn(
-                                      "h-auto w-24 p-4 flex flex-col items-center gap-2 border-2 transition-all",
-                                      "bg-green-500/10 hover:bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-400",
-                                      selecting === table.refId && "opacity-50 cursor-not-allowed"
-                                    )}
-                                    disabled={selecting === table.refId || isSeatLoading}
-                                    onClick={() => handleSelectTable(table)}
-                                  >
-                                    {selecting === table.refId ? (
-                                      <Loader2 className="h-6 w-6 animate-spin" />
-                                    ) : (
-                                      <Armchair className="h-6 w-6 text-green-600 dark:text-green-400" />
-                                    )}
-                                    <div className="text-center min-w-0 w-full">
-                                      <div className="font-semibold text-sm truncate">{table.tableName}</div>
-                                      <div className="text-xs text-green-600/70 dark:text-green-400/70">
-                                        {table.seatingCapacity} seats
+                                {/* Show all tables in displayOrder, with appropriate styling based on availability */}
+                                {allTables.map((table) => {
+                                  const isAvailable = !table.isTableOccupied
+                                  return (
+                                    <Button
+                                      key={table.refId}
+                                      variant="outline"
+                                      className={cn(
+                                        "h-auto w-24 p-2 flex flex-col items-center gap-1 border-2 transition-all",
+                                        isAvailable
+                                          ? "bg-green-500/10 hover:bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-400"
+                                          : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 opacity-75 cursor-not-allowed",
+                                        selecting === table.refId && "opacity-50 cursor-not-allowed"
+                                      )}
+                                      disabled={!isAvailable || selecting === table.refId || isSeatLoading}
+                                      onClick={() => isAvailable && handleSelectTable(table)}
+                                    >
+                                      {selecting === table.refId ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                      ) : (
+                                        <Armchair className={cn(
+                                          "h-5 w-5",
+                                          isAvailable 
+                                            ? "text-green-600 dark:text-green-400" 
+                                            : "text-red-600 dark:text-red-400"
+                                        )} />
+                                      )}
+                                      <div className="text-center min-w-0 w-full">
+                                        <div className="font-semibold text-xs truncate">{table.tableName}</div>
+                                        <div className={cn(
+                                          "text-[10px]",
+                                          isAvailable
+                                            ? "text-green-600/70 dark:text-green-400/70"
+                                            : "text-red-600/70 dark:text-red-400/70"
+                                        )}>
+                                          {table.seatingCapacity} seats
+                                        </div>
                                       </div>
-                                    </div>
-                                  </Button>
-                                ))}
-                                {/* Show occupied tables after available ones */}
-                                {occupiedTables.map((table) => (
-                                  <Button
-                                    key={table.refId}
-                                    variant="outline"
-                                    className={cn(
-                                      "h-auto w-24 p-4 flex flex-col items-center gap-2 border-2 transition-all",
-                                      "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 opacity-75 cursor-not-allowed"
-                                    )}
-                                    disabled={true}
-                                  >
-                                    <Armchair className="h-6 w-6 text-red-600 dark:text-red-400" />
-                                    <div className="text-center min-w-0 w-full">
-                                      <div className="font-semibold text-sm truncate">{table.tableName}</div>
-                                      <div className="text-xs text-red-600/70 dark:text-red-400/70">
-                                        {table.seatingCapacity} seats
-                                      </div>
-                                    </div>
-                                  </Button>
-                                ))}
+                                    </Button>
+                                  )
+                                })}
                               </div>
                             </div>
                           )}
